@@ -5,6 +5,7 @@
 #include <time.h>
 #include <stdlib.h>
 
+void printUTMP(struct utmp *ut);
 void getAllUsers();
 void getSpecifiedUser();
 char* formatLoginTime(time_t login_time);
@@ -24,6 +25,8 @@ int main(int argc, char** argv) {
 	    }
 	}else if(argc == 3){
 		//this means that the command is like: myfinger.o -[lmsp] [user]
+		//for now it will return only a specific user normally
+		getSpecifiedUser(argv[2]);
 	}else{
 		return 1;
 	}
@@ -36,10 +39,8 @@ void getAllUsers(){
 	setutent();
     while ((ut = getutent()) != NULL) {
         if (ut->ut_type == USER_PROCESS) {
-            printf("Username: %s\n", ut->ut_user);
-            printf("Terminal: %s\n", ut->ut_line);
-            printf("Host: %s\n", ut->ut_host);
-            printf("Login time: %d\n", ut->ut_tv.tv_sec);
+        	printf("Username: %s\n", ut->ut_user);
+        	printUTMP(ut);
         }
     }
     endutent();
@@ -51,19 +52,7 @@ void getSpecifiedUser(char* user){
 	setutent();
     while ((ut = getutent()) != NULL) {
         if (ut->ut_type == USER_PROCESS && strncmp(ut->ut_user, target_user, UT_NAMESIZE) == 0) {
-            //printf("Username: %s\n", ut->ut_user);
-            printf("Terminal: %s\n", ut->ut_line);
-            printf("Host: %s\n", ut->ut_host);
-
-            //creating the login time string
-            time_t login_time = ut->ut_tv.tv_sec;	//getting the login information from the file
-            char *formatted_time = formatLoginTime(login_time);
-		    if (formatted_time == NULL) {
-		        printf("Errore durante la formattazione del login time\n");
-		    }else{
-			    printf("Login time: %s\n", formatted_time);
-		    	free(formatted_time);
-		    }
+        	printUTMP(ut);
         }
     }
     endutent();
@@ -95,4 +84,19 @@ char* formatLoginTime(time_t login_time) {
 
     // Restituisci il puntatore al buffer contenente la stringa formattata
     return time_buffer;
+}
+
+void printUTMP(struct utmp *ut){
+    printf("Terminal: %s\n", ut->ut_line);
+    printf("Host: %s\n", ut->ut_host);
+
+    //creating the login time string
+    time_t login_time = ut->ut_tv.tv_sec;	//getting the login information from the file
+    char *formatted_time = formatLoginTime(login_time);
+    if (formatted_time == NULL) {
+        printf("Errore durante la formattazione del login time\n");
+    }else{
+	    printf("Login time: %s\n", formatted_time);
+    	free(formatted_time);
+    }
 }
