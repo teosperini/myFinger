@@ -2,6 +2,7 @@
 
 int main(int argc, char** argv) {
 	if (argc == 1){
+		printf("%-20s %-10s\n", "Name", "TTY");
 		getAllUsers();
 	}else if (argc == 2){
 		char *argument = argv[1];
@@ -30,63 +31,93 @@ void getAllUsers(){
     while ((ut = getutent()) != NULL) {
         if (ut->ut_type == USER_PROCESS) {
         	printf("Username: %s\n", ut->ut_user);
-        	printUTMP(ut);
+        	//printUTMP(ut);
         }
     }
     endutent();
 }
 
-void getSpecifiedUser(char* user){
-	char *target_user = user;
-	struct utmp *ut;
-	setutent();
-    while ((ut = getutent()) != NULL) {
-        if (ut->ut_type == USER_PROCESS && strncmp(ut->ut_user, target_user, UT_NAMESIZE) == 0) {
-        	printUTMP(ut);
-        }
-    }
-    endutent();
+void getSpecifiedUser(const char* user){
 	struct passwd *pw;
-	    if ((pw = getpwnam(user)) != NULL) {
-	        printf("Username: %s\n", pw->pw_name);
-	        printf("Home directory: %s\n", pw->pw_dir);
-	        printf("Shell: %s\n", pw->pw_shell);
-	    } else {
-	        printf("User not found\n");
-	    }
+    if ((pw = getpwnam(user)) != NULL) {
+    	char* name;
+    	if ((name = pw->pw_gecos) != NULL){
+    		printf("Login: %-32s Name:\n", pw->pw_name);
+    	} else {
+    		printf("Login: %-32s Name: %s\n", pw->pw_name, strtok(pw->pw_gecos, ","));
+    	}
+        printf("Directory: %-28s Shell: %-23s\n", pw->pw_dir, pw->pw_shell);
+       	int userLogged = 0;
+    	struct utmp *ut;
+		setutent();
+		while ((ut = getutent()) != NULL) {
+    		if (ut->ut_type == USER_PROCESS && strncmp(ut->ut_user, user, UT_NAMESIZE) == 0) {
+    			printSpecificUTMP(ut);
+    			userLogged = 1;
+    		}
+		}
+		endutent();
+		if (userLogged == 0){
+			printf("Never logged in.\n");
+		}
+		/*
+		char* mail;
+		if ((mail = pw->pw_) != NULL){
+    	printf("");
+    	} else {
+    		printf("No mail.");
+    	}
+		//Aggiungere mail e plan "No mail." "No Plan."
+		*/
+    } else {
+        printf("User not found\n");
+    }
 }
 
-char* formatLoginTime(time_t login_time) {
-    // Converti il tempo epoch in una struttura tm locale
-    struct tm *local_time = localtime(&login_time);
-    if (local_time == NULL) {
-        // Errore nella conversione del tempo
-        return NULL;
-    }
 
-    // Formatta la data e l'ora e memorizzale in un buffer dinamico
-    char *time_buffer = malloc(100 * sizeof(char)); // Allocazione dinamica del buffer
-    if (time_buffer == NULL) {
-        // Errore nell'allocazione della memoria
-        return NULL;
-    }
-    strftime(time_buffer, 100, "%Y-%m-%d %H:%M:%S", local_time);
-
-    // Restituisci il puntatore al buffer contenente la stringa formattata
-    return time_buffer;
-}
-
-void printUTMP(struct utmp *ut){
-    printf("Terminal: %s\n", ut->ut_line);
-    printf("Host: %s\n", ut->ut_host);
-
-    //creating the login time string
+void printSpecificUTMP(const struct utmp *ut){
+	//creating the login time string
     time_t login_time = ut->ut_tv.tv_sec;	//getting the login information from the file
     char *formatted_time = formatLoginTime(login_time);
     if (formatted_time == NULL) {
         printf("Errore durante la formattazione del login time\n");
     }else{
-	    printf("Login time: %s\n", formatted_time);
+	    printf("%s", formatted_time);
     	free(formatted_time);
     }
+    printf(" on %s from %s\n", ut->ut_line, ut->ut_host);
+    ut->ut_info;
+    //printf("BOH: %d\n", ut->ut_type);
 }
+
+
+char* formatLoginTime(const time_t login_seconds) {
+	// TODO:
+	// Controllo se il tempo trascorso dall'ultimo accesso è maggiore di 6 mesi
+	//time_t t = time(NULL);
+
+	//struct tm1 *current_time = localtime(&t);
+    // Converti il tempo epoch in una struct tm
+    struct tm *login_time = localtime(&login_seconds);
+
+    //if (current_time == NULL || login_time == NULL) {
+    if (login_time == NULL) {
+        // Errore nella conversione del tempo
+        return NULL;
+    }
+
+    // Formatta la data e l'ora e memorizzale in un buffer dinamico
+    char *time_buffer = malloc(120 * sizeof(char)); // Allocazione dinamica del buffer
+    if (time_buffer == NULL) {
+        // Errore nell'allocazione della memoria
+        return NULL;
+    }
+    strftime(time_buffer, 120, "On since %a %b %d %H:%M (%Z)", login_time);
+
+    //DA COMPLETARE PER QUANDO SI UTILIZZANO GLI ANNI strftime(time_buffer, 120, "On since %a %b %Y %m %d %H:%M:%S", local_time);
+
+    // Restituisci il puntatore al buffer contenente la stringa formattata
+    return time_buffer;
+}
+
+

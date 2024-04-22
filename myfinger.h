@@ -9,8 +9,8 @@
 #include <stdlib.h>
 
 void getAllUsers();
-void getSpecifiedUser(char* user);
-char* formatLoginTime(time_t login_time);
-void printUTMP(struct utmp *ut);
+void getSpecifiedUser(const char* user);
+char* formatLoginTime(const time_t login_time);
+void printSpecificUTMP(const struct utmp *ut);
 
 #endif /* MYFINGER_H */
