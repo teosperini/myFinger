@@ -1,14 +1,4 @@
-#include <stdio.h>
-#include <utmp.h>
-#include <pwd.h>
-#include <string.h>
-#include <time.h>
-#include <stdlib.h>
-
-void printUTMP(struct utmp *ut);
-void getAllUsers();
-void getSpecifiedUser();
-char* formatLoginTime(time_t login_time);
+#include <myfinger.h>
 
 int main(int argc, char** argv) {
 	if (argc == 1){

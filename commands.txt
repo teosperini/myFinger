@@ -1,0 +1,1 @@
+gcc -Wall -I/home/matteo/Documents/SO2/projectMyFinger myfinger.c -o myfinger.o
