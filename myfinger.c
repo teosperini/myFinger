@@ -41,10 +41,9 @@ void getSpecifiedUser(const char* user){
 	struct passwd *pw;
     if ((pw = getpwnam(user)) != NULL) {
     	char* name;
-    	char* gecos = pw->pw_gecos;
-    	char delimiter = ',';
- 		char* token;
- 		token = strtok(gecos, &delimiter);
+    	char* gecos = strdup(pw->pw_gecos); // Duplica la stringa per evitare modifiche dirette
+    	char* token;
+    	token = strsep(&gecos, ",");
     	if ((name = pw->pw_gecos) != NULL){
     		printf("Login: %-32s Name: %s\n", pw->pw_name, token);
     	} else {
@@ -65,20 +64,26 @@ void getSpecifiedUser(const char* user){
 			printf("Never logged in.\n");
 		}
 
-    	char* office;
-    	if ((office = (char*)strtok(NULL, &delimiter))!= NULL){
+    	char* office = strsep(&gecos, ",");
+    	if (strcmp(office,"")){
     		printf("Office: %s\n", office);
     	} else {
     		printf("No office.\n");
     	}
-    	char* number;
-    	if ((number = (char*)strtok(NULL, &delimiter)) != NULL){
+    	char* number = strsep(&gecos, ",");
+    	if (strcmp(number,"")){
     		printf("Work number: %s\n", number);
     	} else {
     		printf("No phone number.\n");
     	}
-		char* mail;
-		if ((mail = (char*)strtok(NULL, &delimiter)) != NULL){
+    	char* homeNumber = strsep(&gecos, ",");
+    	if (strcmp(homeNumber,"")){
+    		printf("Home number: %s\n", homeNumber);
+    	} else {
+    		printf("No phone number.\n");
+    	}
+		char* mail = strsep(&gecos, ",");
+		if (strcmp(mail,"")){
     		printf("Mail: %s\n", mail);
     	} else {
     		printf("No mail.\n");
