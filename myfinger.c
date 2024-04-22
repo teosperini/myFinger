@@ -41,10 +41,14 @@ void getSpecifiedUser(const char* user){
 	struct passwd *pw;
     if ((pw = getpwnam(user)) != NULL) {
     	char* name;
+    	char* gecos = pw->pw_gecos;
+    	char delimiter = ',';
+ 		char* token;
+ 		token = strtok(gecos, &delimiter);
     	if ((name = pw->pw_gecos) != NULL){
-    		printf("Login: %-32s Name:\n", pw->pw_name);
+    		printf("Login: %-32s Name: %s\n", pw->pw_name, token);
     	} else {
-    		printf("Login: %-32s Name: %s\n", pw->pw_name, strtok(pw->pw_gecos, ","));
+    		printf("Login: %-32s Name:\n", pw->pw_name);
     	}
         printf("Directory: %-28s Shell: %-23s\n", pw->pw_dir, pw->pw_shell);
        	int userLogged = 0;
@@ -60,15 +64,26 @@ void getSpecifiedUser(const char* user){
 		if (userLogged == 0){
 			printf("Never logged in.\n");
 		}
-		/*
-		char* mail;
-		if ((mail = pw->pw_) != NULL){
-    	printf("");
+
+    	char* office;
+    	if ((office = (char*)strtok(NULL, &delimiter))!= NULL){
+    		printf("Office: %s\n", office);
     	} else {
-    		printf("No mail.");
+    		printf("No office.\n");
+    	}
+    	char* number;
+    	if ((number = (char*)strtok(NULL, &delimiter)) != NULL){
+    		printf("Work number: %s\n", number);
+    	} else {
+    		printf("No phone number.\n");
+    	}
+		char* mail;
+		if ((mail = (char*)strtok(NULL, &delimiter)) != NULL){
+    		printf("Mail: %s\n", mail);
+    	} else {
+    		printf("No mail.\n");
     	}
 		//Aggiungere mail e plan "No mail." "No Plan."
-		*/
     } else {
         printf("User not found\n");
     }
@@ -86,7 +101,7 @@ void printSpecificUTMP(const struct utmp *ut){
     	free(formatted_time);
     }
     printf(" on %s from %s\n", ut->ut_line, ut->ut_host);
-    ut->ut_info;
+    //ut->ut_info;
     //printf("BOH: %d\n", ut->ut_type);
 }
 
@@ -119,5 +134,3 @@ char* formatLoginTime(const time_t login_seconds) {
     // Restituisci il puntatore al buffer contenente la stringa formattata
     return time_buffer;
 }
-
-
