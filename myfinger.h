@@ -7,10 +7,12 @@
 #include <string.h>
 #include <time.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 void getAllUsers();
 void getSpecifiedUser(const char* user);
-char* formatLoginTime(const time_t login_time);
+char* formatTime(const time_t login_time, bool login);
 void printSpecificUTMP(const struct utmp *ut);
+char* formatPhoneNumber(const char* phoneNumber);
 
 #endif /* MYFINGER_H */

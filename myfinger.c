@@ -40,14 +40,13 @@ void getAllUsers(){
 void getSpecifiedUser(const char* user){
 	struct passwd *pw;
     if ((pw = getpwnam(user)) != NULL) {
-    	char* name;
+    	char* login = pw->pw_name;
     	char* gecos = strdup(pw->pw_gecos); // Duplica la stringa per evitare modifiche dirette
-    	char* token;
-    	token = strsep(&gecos, ",");
-    	if ((name = pw->pw_gecos) != NULL){
-    		printf("Login: %-32s Name: %s\n", pw->pw_name, token);
+    	char* name = strsep(&gecos, ",");
+    	if (name != NULL){
+    		printf("Login: %-32s Name: %s\n", login, name);
     	} else {
-    		printf("Login: %-32s Name:\n", pw->pw_name);
+    		printf("Login: %-32s Name:\n", login);
     	}
         printf("Directory: %-28s Shell: %-23s\n", pw->pw_dir, pw->pw_shell);
        	int userLogged = 0;
@@ -64,78 +63,108 @@ void getSpecifiedUser(const char* user){
 			printf("Never logged in.\n");
 		}
 
-    	char* office = strsep(&gecos, ",");
-    	if (strcmp(office,"")){
-    		printf("Office: %s\n", office);
-    	} else {
-    		printf("No office.\n");
-    	}
-    	char* number = strsep(&gecos, ",");
-    	if (strcmp(number,"")){
-    		printf("Work number: %s\n", number);
-    	} else {
-    		printf("No phone number.\n");
-    	}
-    	char* homeNumber = strsep(&gecos, ",");
-    	if (strcmp(homeNumber,"")){
-    		printf("Home number: %s\n", homeNumber);
-    	} else {
-    		printf("No phone number.\n");
-    	}
-		char* mail = strsep(&gecos, ",");
-		if (strcmp(mail,"")){
-    		printf("Mail: %s\n", mail);
-    	} else {
-    		printf("No mail.\n");
-    	}
-		//Aggiungere mail e plan "No mail." "No Plan."
+        for (int i = 0; i < 4; ++i) {
+            char* field = strsep(&gecos, ",");
+            if (field != NULL && strcmp(field, "") != 0) {
+                switch (i) {
+                    case 0:
+                        printf("Office: %s\n", field);
+                        break;
+                    case 1:
+                        printf("Work number: %s\n", formatPhoneNumber(field));
+                        break;
+                    case 2:
+                        printf("Home number: %s\n", formatPhoneNumber(field));
+                        break;
+                    case 3:
+                        printf("Mail: %s\n", field);
+                        break;
+                }
+            } else {
+                switch (i) {
+                    case 0:
+                        printf("No office.\n");
+                        break;
+                    case 1:
+                        printf("No work number.\n");
+                        break;
+                    case 2:
+                        printf("No home number.\n");
+                        break;
+                    case 3:
+                        printf("No mail.\n");
+                        break;
+                }
+            }
+        }
     } else {
         printf("User not found\n");
     }
 }
 
-
-void printSpecificUTMP(const struct utmp *ut){
-	//creating the login time string
-    time_t login_time = ut->ut_tv.tv_sec;	//getting the login information from the file
-    char *formatted_time = formatLoginTime(login_time);
-    if (formatted_time == NULL) {
+void printSpecificUTMP(const struct utmp *ut) {
+    time_t login_time = ut->ut_tv.tv_sec;
+    char *formatted_login_time = formatTime(login_time, true);
+    if (formatted_login_time == NULL) {
         printf("Errore durante la formattazione del login time\n");
-    }else{
-	    printf("%s", formatted_time);
-    	free(formatted_time);
+    } else {
+        printf("%s", formatted_login_time);
+        free(formatted_login_time);
     }
     printf(" on %s from %s\n", ut->ut_line, ut->ut_host);
-    //ut->ut_info;
-    //printf("BOH: %d\n", ut->ut_type);
+
+    char *formatted_idle_time = formatTime(login_time, false);
+    if (formatted_idle_time == NULL) {
+        printf("Errore durante la formattazione dell'idle time\n");
+    } else {
+        printf("%s", formatted_idle_time);
+        free(formatted_idle_time);
+    }
 }
 
+char *formatTime(const time_t time_seconds, bool isLogin) {
+    time_t current_time = time(NULL);
+    double diff_seconds = difftime(current_time, time_seconds);
 
-char* formatLoginTime(const time_t login_seconds) {
-	// TODO:
-	// Controllo se il tempo trascorso dall'ultimo accesso è maggiore di 6 mesi
-	//time_t t = time(NULL);
-
-	//struct tm1 *current_time = localtime(&t);
-    // Converti il tempo epoch in una struct tm
-    struct tm *login_time = localtime(&login_seconds);
-
-    //if (current_time == NULL || login_time == NULL) {
-    if (login_time == NULL) {
-        // Errore nella conversione del tempo
-        return NULL;
-    }
-
-    // Formatta la data e l'ora e memorizzale in un buffer dinamico
-    char *time_buffer = malloc(120 * sizeof(char)); // Allocazione dinamica del buffer
+    struct tm *time_info = localtime(&time_seconds);
+    char *time_buffer = malloc(100 * sizeof(char));
     if (time_buffer == NULL) {
-        // Errore nell'allocazione della memoria
         return NULL;
     }
-    strftime(time_buffer, 120, "On since %a %b %d %H:%M (%Z)", login_time);
 
-    //DA COMPLETARE PER QUANDO SI UTILIZZANO GLI ANNI strftime(time_buffer, 120, "On since %a %b %Y %m %d %H:%M:%S", local_time);
+    if (isLogin) {
+        if (diff_seconds > 15552000) {
+            // Formatta la data e l'ora con l'anno e memorizzale nel buffer
+            strftime(time_buffer, 100, "On since %a %b %Y %H:%M (%Z)\n", time_info);
+        } else {
+            // Se sono trascorsi meno di 6 mesi, formatta la data e l'ora con ore e minuti
+            strftime(time_buffer, 100, "On since %a %b %d %H:%M (%Z)\n", time_info);
+        }
+    } else {
+        int hours = diff_seconds / 3600;
+        int minutes = ((int)diff_seconds % 3600) / 60;
+        sprintf(time_buffer, "  %d hour %d minutes idle\n", hours, minutes);
+    }
 
-    // Restituisci il puntatore al buffer contenente la stringa formattata
     return time_buffer;
+}
+
+char* formatPhoneNumber(const char* phoneNumber){
+if (strlen(phoneNumber) != 10) {
+        printf("Numero di telefono non valido.\n");
+        return NULL;
+    }
+
+    char* number_buffer = malloc(15 * sizeof(char));
+    if (number_buffer == NULL) {
+        printf("Errore nell'allocazione della memoria.\n");
+        return NULL;
+        }
+
+    snprintf(number_buffer, 15, "%.*s-%.*s-%.*s",
+             3, phoneNumber,
+             3, phoneNumber + 3,
+             4, phoneNumber + 6);
+
+    return number_buffer;
 }
