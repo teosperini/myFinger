@@ -1,6 +1,11 @@
 #include <myfinger.h>
 
 int main(int argc, char** argv) {
+    for(int i = 0; i < argc; ++i){
+        if (argv[i][0] == '-'){
+            printf("ciao");
+        }
+    }
 	if (argc == 1){
 		printf("%-20s %-10s\n", "Name", "TTY");
 		getAllUsers();
@@ -19,26 +24,26 @@ int main(int argc, char** argv) {
 		//for now it will return only a specific user normally
 		getSpecifiedUser(argv[2]);
 	}else{
-		return 1;
+        char letter = 'a';
+		printf("finger: invalid option -- '%c'\nusage: finger [-lmps] [login ...]\n", letter);
 	}
 	return 0;
 }
 
 
 void getAllUsers(){
-	struct utmp *ut;
+	struct utmp* ut;
 	setutent();
     while ((ut = getutent()) != NULL) {
         if (ut->ut_type == USER_PROCESS) {
         	printf("Username: %s\n", ut->ut_user);
-        	//printUTMP(ut);
         }
     }
     endutent();
 }
 
 void getSpecifiedUser(const char* user){
-	struct passwd *pw;
+	struct passwd* pw;
     if ((pw = getpwnam(user)) != NULL) {
     	char* login = pw->pw_name;
     	char* gecos = strdup(pw->pw_gecos); // Duplica la stringa per evitare modifiche dirette
@@ -50,7 +55,7 @@ void getSpecifiedUser(const char* user){
     	}
         printf("Directory: %-28s Shell: %-23s\n", pw->pw_dir, pw->pw_shell);
        	int userLogged = 0;
-    	struct utmp *ut;
+    	struct utmp* ut;
 		setutent();
 		while ((ut = getutent()) != NULL) {
     		if (ut->ut_type == USER_PROCESS && strncmp(ut->ut_user, user, UT_NAMESIZE) == 0) {
@@ -102,27 +107,31 @@ void getSpecifiedUser(const char* user){
     }
 }
 
-void printSpecificUTMP(const struct utmp *ut) {
+void printSpecificUTMP(const struct utmp* ut) {
     time_t login_time = ut->ut_tv.tv_sec;
-    char *formatted_login_time = formatTime(login_time, true);
+    char* formatted_login_time = formatTime(login_time, true);
     if (formatted_login_time == NULL) {
         printf("Errore durante la formattazione del login time\n");
     } else {
         printf("%s", formatted_login_time);
         free(formatted_login_time);
     }
-    printf(" on %s from %s\n", ut->ut_line, ut->ut_host);
-
-    char *formatted_idle_time = formatTime(login_time, false);
+    const char* host = ut->ut_host;
+    if(strcmp(host, "") == 0){
+        printf(" on %s\n     (messages off)\n", ut->ut_line);
+    } else {
+       printf(" on %s from %s\n", ut->ut_line, ut->ut_host);
+           char* formatted_idle_time = formatTime(login_time, false);
     if (formatted_idle_time == NULL) {
         printf("Errore durante la formattazione dell'idle time\n");
     } else {
         printf("%s", formatted_idle_time);
         free(formatted_idle_time);
     }
+    }
 }
 
-char *formatTime(const time_t time_seconds, bool isLogin) {
+char* formatTime(const time_t time_seconds, bool isLogin) {
     time_t current_time = time(NULL);
     double diff_seconds = difftime(current_time, time_seconds);
 
@@ -135,10 +144,10 @@ char *formatTime(const time_t time_seconds, bool isLogin) {
     if (isLogin) {
         if (diff_seconds > 15552000) {
             // Formatta la data e l'ora con l'anno e memorizzale nel buffer
-            strftime(time_buffer, 100, "On since %a %b %Y %H:%M (%Z)\n", time_info);
+            strftime(time_buffer, 100, "On since %a %b %Y %H:%M (%Z)", time_info);
         } else {
             // Se sono trascorsi meno di 6 mesi, formatta la data e l'ora con ore e minuti
-            strftime(time_buffer, 100, "On since %a %b %d %H:%M (%Z)\n", time_info);
+            strftime(time_buffer, 100, "On since %a %b %d %H:%M (%Z)", time_info);
         }
     } else {
         int hours = diff_seconds / 3600;
