@@ -1,9 +1,67 @@
 #include <myfinger.h>
 
+struct Options {
+    int l_option;
+    int m_option;
+    int s_option;
+};
+
+//finger di base cerca l'utente anche tramite il suo Nome, non solo
+//tramite l'username. per far si che cerchi solo per username: -m
 int main(int argc, char** argv) {
-    for(int i = 0; i < argc; ++i){
-        if (argv[i][0] == '-'){
-            printf("ciao");
+    int opt;
+    while ((opt = getopt(argc, argv, "lmsp")) != -1) {
+
+        switch (opt) {
+            case 'l':
+                // Gestisci l'opzione -l
+                printf("Opzione -l selezionata\n");
+                break;
+            case 'm':
+                // Gestisci l'opzione -m
+                for(int i = 1; i < argc; ++i){
+                    if (i == opt){
+                        continue;
+                    } else{
+                        getSpecifiedUser(argv[i]);
+                    }
+                }
+                break;
+            case 's':
+                // Gestisci l'opzione -s
+                printf("Opzione -s selezionata\n");
+                break;
+            case '?':
+                // Gestisci opzioni non riconosciute o mancanti argomenti
+                if (optopt == 'm') {
+                    fprintf(stderr, "L'opzione -m richiede un argomento.\n");
+                } else if (isprint(optopt)) {
+                    fprintf(stderr, "Opzione sconosciuta '-%c'.\n", optopt);
+                } else {
+                    fprintf(stderr, "Carattere sconosciuto '\\x%x'.\n", optopt);
+                }
+                return 1;
+            default:
+                // Gestisci altri errori
+                abort();
+        }
+/////////TODO////////////////////////////////TODO////////////
+        if(option_l){
+            handle_l(option_m, option_p);
+        } else if(option_s){
+            handle_s(option_p);
+        }
+
+    }
+    /*
+    char** users_input = NULL;
+    users_input = (char**)malloc(argc * sizeof(char*));
+
+    for(int i = 1; i < argc; ++i){
+        if (i == opt){
+            continue;
+        } else{
+            users_input[i] = argv;
         }
     }
 	if (argc == 1){
@@ -27,6 +85,7 @@ int main(int argc, char** argv) {
         char letter = 'a';
 		printf("finger: invalid option -- '%c'\nusage: finger [-lmps] [login ...]\n", letter);
 	}
+    */
 	return 0;
 }
 
@@ -116,20 +175,27 @@ void printSpecificUTMP(const struct utmp* ut) {
         printf("%s", formatted_login_time);
         free(formatted_login_time);
     }
-    const char* host = ut->ut_host;
-    if(strcmp(host, "") == 0){
-        printf(" on %s\n     (messages off)\n", ut->ut_line);
+
+    printf(" on %s", ut->ut_line);
+    char* formatted_idle_time = formatTime(login_time, false);
+
+    if (formatted_idle_time != NULL) {
+
+        const char* host = ut->ut_host;
+        if(strcmp(host, "") != 0){
+            printf(" from %s\n", ut->ut_host);
+            printf("%s", formatted_idle_time);
+        } else {
+            printf("  %s\t(messages off)\n", formatted_idle_time);
+        }
+
     } else {
-       printf(" on %s from %s\n", ut->ut_line, ut->ut_host);
-           char* formatted_idle_time = formatTime(login_time, false);
-    if (formatted_idle_time == NULL) {
         printf("Errore durante la formattazione dell'idle time\n");
-    } else {
-        printf("%s", formatted_idle_time);
-        free(formatted_idle_time);
     }
-    }
+    //non stampo from, ma stampo al posto di from il tempo di idle, e a capo message off
+    free(formatted_idle_time);
 }
+
 
 char* formatTime(const time_t time_seconds, bool isLogin) {
     time_t current_time = time(NULL);

@@ -8,6 +8,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <unistd.h>
 
 void getAllUsers();
 void getSpecifiedUser(const char* user);
