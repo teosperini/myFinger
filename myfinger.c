@@ -1,42 +1,47 @@
 #include <myfinger.h>
 
-struct Options {
-    int l_option;
-    int m_option;
-    int s_option;
-};
+bool l_option = false;
+bool m_option = false;
+bool s_option = false;
+bool p_option = false;
 
 //finger di base cerca l'utente anche tramite il suo Nome, non solo
 //tramite l'username. per far si che cerchi solo per username: -m
 int main(int argc, char** argv) {
     int opt;
+    char** names = NULL;
+    int names_count = 0;
+
     while ((opt = getopt(argc, argv, "lmsp")) != -1) {
 
         switch (opt) {
             case 'l':
                 // Gestisci l'opzione -l
                 printf("Opzione -l selezionata\n");
+                l_option = true;
                 break;
             case 'm':
                 // Gestisci l'opzione -m
-                for(int i = 1; i < argc; ++i){
-                    if (i == opt){
-                        continue;
-                    } else{
-                        getSpecifiedUser(argv[i]);
-                    }
-                }
+               	printf("Opzione -m selezionata\n");
+                m_option = true;
                 break;
             case 's':
                 // Gestisci l'opzione -s
                 printf("Opzione -s selezionata\n");
+                s_option = true;
+                break;
+            case 'p':
+                // Gestisci l'opzione -p
+                printf("Opzione -p selezionata\n");
+                p_option = true;
                 break;
             case '?':
                 // Gestisci opzioni non riconosciute o mancanti argomenti
                 if (optopt == 'm') {
                     fprintf(stderr, "L'opzione -m richiede un argomento.\n");
                 } else if (isprint(optopt)) {
-                    fprintf(stderr, "Opzione sconosciuta '-%c'.\n", optopt);
+                    fprintf(stderr, "usage: finger [-lmps] [login ...]\n");
+
                 } else {
                     fprintf(stderr, "Carattere sconosciuto '\\x%x'.\n", optopt);
                 }
@@ -46,12 +51,32 @@ int main(int argc, char** argv) {
                 abort();
         }
 /////////TODO////////////////////////////////TODO////////////
-        if(option_l){
-            handle_l(option_m, option_p);
-        } else if(option_s){
-            handle_s(option_p);
-        }
-
+    }
+	for(int i = 1; i < argc; ++i){
+	    if (strncmp(argv[i], "-", 1) == 0){
+	        continue;
+	    } else{
+	   		names = (char**)realloc(names, (names_count + 1) * sizeof(char*));
+			if (names == NULL) {
+				fprintf(stderr, "Errore durante l'allocazione di memoria per i nomi.\n");
+				return 1;
+			}
+			names[names_count++] = argv[i];
+	        //getSpecifiedUser(argv[i]);
+	        //printf("\n");
+	        //invece salvarsi tutti i nomi
+	    }
+	}
+    if(l_option){
+        printf("ciao\n");
+        //handle_l(); //funzione che utilizza i parametri globali m_option e p_option
+    } else if(s_option){
+    	printf("bru\n");
+        //handle_s(); //funzione che utilizza il parametro globale m_option
+    }
+    printf("Nomi inseriti dall'utente:\n");
+    for (int i = 0; i < names_count; ++i) {
+        printf("%s\n", names[i]);
     }
     /*
     char** users_input = NULL;
@@ -126,6 +151,7 @@ void getSpecifiedUser(const char* user){
 		if (userLogged == 0){
 			printf("Never logged in.\n");
 		}
+		//per gli asterischi controllare accesso alla home directory access(pw_dir, W_OK);
 
         for (int i = 0; i < 4; ++i) {
             char* field = strsep(&gecos, ",");
@@ -141,7 +167,8 @@ void getSpecifiedUser(const char* user){
                         printf("Home number: %s\n", formatPhoneNumber(field));
                         break;
                     case 3:
-                        printf("Mail: %s\n", field);
+                        printf("Mail: TODO %s\n", field);
+                        ///////////////TODO/////////////////////////////////
                         break;
                 }
             } else {
@@ -156,7 +183,8 @@ void getSpecifiedUser(const char* user){
                         printf("No home number.\n");
                         break;
                     case 3:
-                        printf("No mail.\n");
+                        printf("No mail TODO.\n");
+                        ///////////////TODO/////////////////////////////////
                         break;
                 }
             }
