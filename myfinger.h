@@ -10,14 +10,20 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <sys/stat.h>
 #include <limits.h>
 
-void getAllUsers();
+void getActiveUsers();
 void getSpecifiedUser(const char* user);
+void getSpecifiedAll();
 char* formatTime(const time_t login_time, bool login);
-void printSpecificUTMP(const struct utmp *ut);
+void printSpecificUTMP(const struct utmp* ut);
 char* formatPhoneNumber(const char* phoneNumber);
-void handle_l();
-void handle_s();
+void getSpecifiedUserPW(const char* user);
+bool checkAsterisk(const char* line);
+void printShort(const struct passwd* pw, const struct utmp* ut);
+void printLong(const struct passwd* pw, const struct utmp* ut);
+void handle_no_names();
+void handle_names(char** names, int names_count);
 
 #endif /* MYFINGER_H */
