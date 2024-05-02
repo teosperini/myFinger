@@ -4,6 +4,7 @@ bool l_option = false;
 bool m_option = false;
 bool s_option = false;
 bool p_option = false;
+bool intestazione = false;
 
 //finger di base cerca l'utente anche tramite il suo Nome, non solo
 //tramite l'username. per far si che cerchi solo per username: -m
@@ -11,40 +12,33 @@ int main(int argc, char** argv) {
     int opt;
     char** names = NULL;
     int names_count = 0;
-
     while ((opt = getopt(argc, argv, "lmsp")) != -1) {
 
         switch (opt) {
             case 'l':
-                // Gestisci l'opzione -l
-                printf("Opzione -l selezionata\n");
+                // Handle -l option
                 l_option = true;
                 break;
             case 'm':
-                // Gestisci l'opzione -m
-               	printf("Opzione -m selezionata\n");
+                // Handle -m option
                 m_option = true;
                 break;
             case 's':
-                // Gestisci l'opzione -s
-                printf("Opzione -s selezionata\n");
+                // Handle -s option
                 s_option = true;
                 break;
             case 'p':
-                // Gestisci l'opzione -p
-                printf("Opzione -p selezionata\n");
+                // Handle -p option
                 p_option = true;
                 break;
             case '?':
-                // Gestisci opzioni non riconosciute o mancanti argomenti
-                if (optopt == 'm') {
-                    fprintf(stderr, "L'opzione -m richiede un argomento.\n");
-                } else if (isprint(optopt)) {
-                    fprintf(stderr, "usage: finger [-lmps] [login ...]\n");
-
+                //if (isprint(optopt)) {
+                fprintf(stderr, "usage: myfinger [-lmps] [login ...]\n");
+                /*
                 } else {
                     fprintf(stderr, "Carattere sconosciuto '\\x%x'.\n", optopt);
-                }
+
+                }*/
                 return 1;
             default:
                 // Gestisci altri errori
@@ -52,107 +46,197 @@ int main(int argc, char** argv) {
         }
 /////////TODO////////////////////////////////TODO////////////
     }
-	for(int i = 1; i < argc; ++i){
-	    if (strncmp(argv[i], "-", 1) == 0){
-	        continue;
-	    } else{
-	   		names = (char**)realloc(names, (names_count + 1) * sizeof(char*));
-			if (names == NULL) {
-				fprintf(stderr, "Errore durante l'allocazione di memoria per i nomi.\n");
-				return 1;
-			}
-			names[names_count++] = argv[i];
-	        //getSpecifiedUser(argv[i]);
-	        //printf("\n");
-	        //invece salvarsi tutti i nomi
-	    }
-	}
-    if(l_option){
-        printf("ciao\n");
-        //handle_l(); //funzione che utilizza i parametri globali m_option e p_option
-    } else if(s_option){
-    	printf("bru\n");
-        //handle_s(); //funzione che utilizza il parametro globale m_option
-    }
-    printf("Nomi inseriti dall'utente:\n");
-    for (int i = 0; i < names_count; ++i) {
-        printf("%s\n", names[i]);
-    }
-    /*
-    char** users_input = NULL;
-    users_input = (char**)malloc(argc * sizeof(char*));
-
     for(int i = 1; i < argc; ++i){
-        if (i == opt){
+        if (strncmp(argv[i], "-", 1) == 0){
             continue;
         } else{
-            users_input[i] = argv;
+            names = (char**)realloc(names, (names_count + 1) * sizeof(char*));
+            if (names == NULL) {
+                fprintf(stderr, "Errore durante l'allocazione di memoria per i nomi.\n");
+                return 1;
+            }
+
+            names[names_count++] = argv[i];
         }
     }
-	if (argc == 1){
-		printf("%-20s %-10s\n", "Name", "TTY");
-		getAllUsers();
-	}else if (argc == 2){
-		char *argument = argv[1];
-	    if (argument[0] == '-') {
-	    	// this means that the second parameter is a command
-	    	// for now there are no command available, so print all the users normally
-	    	//TODO.......................................................
-	        getAllUsers();
-	    } else {
-	        getSpecifiedUser(argv[1]);
-	    }
-	}else if(argc == 3){
-		//this means that the command is like: myfinger.o -[lmsp] [user]
-		//for now it will return only a specific user normally
-		getSpecifiedUser(argv[2]);
-	}else{
-        char letter = 'a';
-		printf("finger: invalid option -- '%c'\nusage: finger [-lmps] [login ...]\n", letter);
-	}
+
+    /*  casi possibili:
+        - nessun nome: cerco gli utenti attivi, quindi prima UTMP e poi PASSWD
+            -s di default
+            -m non ha effetto
+            -l solo se specificato
+            -p solo se -l specificato
+        - con nome: cerco tra tutti gli utenti, quindi prima PASSWD e poi UTMP
+            -l di default
+            -m ha effetto
+            -s solo se specificato
+            -p solo se non è specificato -s
     */
-	return 0;
+
+    if (names_count == 0){
+        getActiveUsers();
+        //handle_no_names();
+    } else {
+        handle_names(names, names_count);
+    }
+    return 0;
 }
 
+void handle_no_names(){ //short
+    //lista utenti attivi
+    //getActiveUsers();
+}
 
-void getAllUsers(){
-	struct utmp* ut;
-	setutent();
+void handle_names(char** names, int names_count){ //long
+    //lista utenti con quel nome esatto
+    if(m_option){
+        for (int i = 0; i < names_count; i++) {
+            getSpecifiedUser(names[i]);
+        }
+        //ricerco gli utenti solo per username
+    } else {
+        for (int i = 0; i < names_count; i++) {
+            getSpecifiedAll(names[i]);
+        }
+        //ricerco gli utenti anche per nome in gecos
+    }
+}
+
+//serve una separazione di funzioni. una che trova gli utenti (o chi è attivo o dal nome) e
+//una che stampa o in modalità -l o -s
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void getActiveUsers(){
+    struct utmp* ut;
+    setutent();
     while ((ut = getutent()) != NULL) {
         if (ut->ut_type == USER_PROCESS) {
-        	printf("Username: %s\n", ut->ut_user);
+            char* user = ut->ut_user;
+            struct passwd *pw;
+            setpwent(); // Imposta il puntatore al file /etc/passwd all'inizio
+            if((pw = getpwnam(user)) != NULL) { //se volessi tutte le entry fare getpwent()
+                if(l_option){
+                    printLong(pw, ut);
+                } else {
+                    printShort(pw, ut);
+                }
+            }
+            endpwent();
         }
     }
     endutent();
 }
 
-void getSpecifiedUser(const char* user){
-	struct passwd* pw;
-    if ((pw = getpwnam(user)) != NULL) {
-    	char* login = pw->pw_name;
-    	char* gecos = strdup(pw->pw_gecos); // Duplica la stringa per evitare modifiche dirette
-    	char* name = strsep(&gecos, ",");
-    	if (name != NULL){
-    		printf("Login: %-32s Name: %s\n", login, name);
-    	} else {
-    		printf("Login: %-32s Name:\n", login);
-    	}
-        printf("Directory: %-28s Shell: %-23s\n", pw->pw_dir, pw->pw_shell);
-       	int userLogged = 0;
-    	struct utmp* ut;
-		setutent();
-		while ((ut = getutent()) != NULL) {
-    		if (ut->ut_type == USER_PROCESS && strncmp(ut->ut_user, user, UT_NAMESIZE) == 0) {
-    			printSpecificUTMP(ut);
-    			userLogged = 1;
-    		}
-		}
-		endutent();
-		if (userLogged == 0){
-			printf("Never logged in.\n");
-		}
-		//per gli asterischi controllare accesso alla home directory access(pw_dir, W_OK);
 
+void getSpecifiedAll(char* user){
+    struct passwd *pw;
+    setpwent();
+    bool foundSomething = false;
+    while((pw = getpwent()) != NULL){
+        char* gecos = strdup(pw->pw_gecos);
+        char* name = strsep(&gecos, ",");
+        char* singleName;
+        bool found = false;
+        // Confronto esatto tra il nome utente e il campo pw_name
+        if(strcasecmp(user, pw->pw_name) == 0){
+            found = true;
+        }
+        // Confronto esatto tra il nome utente e il nome nel campo gecos
+        if(strcasecmp(user, name) == 0){
+            found = true;
+        }
+        // Verifica se ci sono ulteriori nomi all'interno del campo gecos
+        while((singleName = strsep(&name, " "))){
+            // Confronto esatto tra il nome utente e i nomi all'interno del campo gecos
+            if(strcasecmp(user, singleName) == 0){
+                found = true;
+            }
+        }
+
+        if(found){
+            foundSomething = true;
+            struct utmp* ut;
+            setutent();
+            bool userFound = false;
+            while ((ut = getutent()) != NULL) {
+                if (ut->ut_type == USER_PROCESS && strncmp(ut->ut_user, user, UT_NAMESIZE) == 0) {
+                    if(!s_option || (l_option && s_option)){
+                        printLong(pw, ut);
+                    } else{
+                        printShort(pw, ut);
+                    }
+                    userFound = true;
+                }
+            } 
+            endutent();
+
+            // Esegui printLong(pw, NULL); solo se nessun utente è stato trovato
+            if (!userFound) {
+                if(s_option){
+                    printShort(pw, NULL);
+                } else{
+                    printLong(pw, NULL);
+                }
+            }
+        }
+
+    }
+    endpwent();
+    if(!foundSomething){
+        printf("myfinger: %s: no such user.\n", user);
+    }
+}
+
+
+
+void getSpecifiedUser(const char* user){ // -m
+    struct passwd* pw;
+    if ((pw = getpwnam(user)) != NULL) {
+        struct utmp* ut;
+        setutent();
+        int userFound = false;
+        while ((ut = getutent()) != NULL) {
+            if (ut->ut_type == USER_PROCESS && strncmp(ut->ut_user, user, UT_NAMESIZE) == 0) {
+                if(s_option){
+                    printShort(pw, ut);
+                } else{
+                    printLong(pw, ut);
+                }
+                userFound = true;
+            }
+        } 
+        endutent();
+
+        // Esegui printLong(pw, NULL); solo se nessun utente è stato trovato
+        if (!userFound) {
+            if(s_option){
+                printShort(pw, NULL);
+            } else{
+                printLong(pw, NULL);
+            }
+        }
+/*
         for (int i = 0; i < 4; ++i) {
             char* field = strsep(&gecos, ",");
             if (field != NULL && strcmp(field, "") != 0) {
@@ -189,10 +273,83 @@ void getSpecifiedUser(const char* user){
                 }
             }
         }
+        */
     } else {
-        printf("User not found\n");
+        printf("myfinger: %s: no such user.\n", user); //METTERE ANCHE SOPRA
     }
 }
+
+
+
+
+void printShort(const struct passwd* pw, const struct utmp* ut){
+    if(!intestazione){
+        printf("Login\t  Name\t\t   Tty\t    Idle  Login Time   Office\t  Office Phone\n");
+        intestazione = true;
+    }
+    printf("%-10s", pw->pw_name);
+    char* gecos = strdup(pw->pw_gecos); // Duplica la stringa per evitare modifiche dirette
+    char* name = strsep(&gecos, ",");
+    if (name != NULL){
+        printf("%-.16s", name);
+    } else {
+        printf("\t\t");
+    }
+    if(ut != NULL){
+        const char* teletype = ut->ut_line;
+        if (checkAsterisk(teletype)){
+            printf(" %-10s\n", teletype);
+        } else {
+            printf("*%-9s\n", teletype);
+        }
+    } else {
+        printf("\n");
+    }
+}
+
+void printLong(const struct passwd* pw, const struct utmp* ut){
+    char* login = pw->pw_name;
+    char* gecos = strdup(pw->pw_gecos); // Duplica la stringa per evitare modifiche dirette
+    char* name = strsep(&gecos, ",");
+    if (name != NULL){
+        printf("Login: %-32s Name: %s\n", login, name);
+    } else {
+        printf("Login: %-32s Name:\n", login);
+    }
+    printf("Directory: %-28s Shell: %-23s\n", pw->pw_dir, pw->pw_shell);
+    if(ut != NULL){
+        printSpecificUTMP(ut);
+    } else {
+        printf("Never logged in.\n");
+    }
+    if(p_option){
+        printf("non sto stampando il Plan\n");
+    }
+}
+
+
+
+
+
+
+bool checkAsterisk(const char* line){
+    char file_path[256];
+    // Copy /dev/ into the buffer
+    strcpy(file_path, "/dev/");
+
+    // Concatena ut->ut_line al buffer
+    strcat(file_path, line);
+
+    struct stat file_stat;
+    if (stat(file_path, &file_stat) == 0) {
+        // Check if group or others have write permission
+        if (file_stat.st_mode & (S_IWOTH | S_IWGRP)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 
 void printSpecificUTMP(const struct utmp* ut) {
     time_t login_time = ut->ut_tv.tv_sec;
@@ -209,19 +366,18 @@ void printSpecificUTMP(const struct utmp* ut) {
 
     if (formatted_idle_time != NULL) {
 
-        const char* host = ut->ut_host;
-        if(strcmp(host, "") != 0){
+        const char* teletype = ut->ut_line;
+        if (checkAsterisk(teletype)){
             printf(" from %s\n", ut->ut_host);
             printf("%s", formatted_idle_time);
         } else {
-            printf("  %s\t(messages off)\n", formatted_idle_time);
+            printf("%s     (messages off)\n", formatted_idle_time);
         }
 
+        free(formatted_idle_time);
     } else {
         printf("Errore durante la formattazione dell'idle time\n");
     }
-    //non stampo from, ma stampo al posto di from il tempo di idle, e a capo message off
-    free(formatted_idle_time);
 }
 
 
@@ -246,7 +402,7 @@ char* formatTime(const time_t time_seconds, bool isLogin) {
     } else {
         int hours = diff_seconds / 3600;
         int minutes = ((int)diff_seconds % 3600) / 60;
-        sprintf(time_buffer, "  %d hour %d minutes idle\n", hours, minutes);
+        sprintf(time_buffer, "    %d hour %d minutes idle\n", hours, minutes);
     }
 
     return time_buffer;
