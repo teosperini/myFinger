@@ -6,8 +6,7 @@ bool s_option = false;
 bool p_option = false;
 bool intestazione = false;
 
-//finger di base cerca l'utente anche tramite il suo Nome, non solo
-//tramite l'username. per far si che cerchi solo per username: -m
+
 int main(int argc, char** argv) {
     int opt;
     char** names = NULL;
@@ -32,24 +31,27 @@ int main(int argc, char** argv) {
                 p_option = true;
                 break;
             case '?':
-                //if (isprint(optopt)) {
                 fprintf(stderr, "usage: myfinger [-lmps] [login ...]\n");
-                /*
-                } else {
-                    fprintf(stderr, "Carattere sconosciuto '\\x%x'.\n", optopt);
-
-                }*/
                 return 1;
             default:
-                // Gestisci altri errori
+                // Handle other errors
                 abort();
         }
-/////////TODO////////////////////////////////TODO////////////
+
     }
     for(int i = 1; i < argc; ++i){
         if (strncmp(argv[i], "-", 1) == 0){
             continue;
         } else{
+            bool try = false;
+            for(int j = 0; j < names_count; ++j){
+                if(strcmp(names[j], argv[i]) == 0){
+                    try = true;
+                }
+            }
+            if(try){
+                continue;
+            }
             names = (char**)realloc(names, (names_count + 1) * sizeof(char*));
             if (names == NULL) {
                 fprintf(stderr, "Errore durante l'allocazione di memoria per i nomi.\n");
@@ -74,8 +76,7 @@ int main(int argc, char** argv) {
     */
 
     if (names_count == 0){
-        getActiveUsers();
-        //handle_no_names();
+        handle_no_names();
     } else {
         handle_names(names, names_count);
     }
@@ -83,24 +84,25 @@ int main(int argc, char** argv) {
 }
 
 void handle_no_names(){ //short
-    //lista utenti attivi
-    //getActiveUsers();
+    getActiveUsers();
 }
 
 void handle_names(char** names, int names_count){ //long
+    //char** already_printed = NULL;
     //lista utenti con quel nome esatto
-    if(m_option){
-        for (int i = 0; i < names_count; i++) {
+    //eliminare i duplicati
+    for (int i = 0; i < names_count; i++) {
+        //while()
+        if(m_option){
+            //ricerco gli utenti solo per username
             getSpecifiedUser(names[i]);
-        }
-        //ricerco gli utenti solo per username
-    } else {
-        for (int i = 0; i < names_count; i++) {
+        } else {
+            //ricerco gli utenti anche per nome in gecos
             getSpecifiedAll(names[i]);
         }
-        //ricerco gli utenti anche per nome in gecos
     }
 }
+
 
 //serve una separazione di funzioni. una che trova gli utenti (o chi è attivo o dal nome) e
 //una che stampa o in modalità -l o -s
@@ -175,6 +177,9 @@ void getSpecifiedAll(char* user){
         }
 
         if(found){
+            if(!s_option || (l_option && s_option)){
+                printInit(pw);
+            }
             foundSomething = true;
             struct utmp* ut;
             setutent();
@@ -216,7 +221,12 @@ void getSpecifiedUser(const char* user){ // -m
         struct utmp* ut;
         setutent();
         int userFound = false;
+        bool printed = false;
         while ((ut = getutent()) != NULL) {
+            if (!printed){
+                printInit(pw);
+                printed = true;
+            }
             if (ut->ut_type == USER_PROCESS && strncmp(ut->ut_user, user, UT_NAMESIZE) == 0) {
                 if(s_option){
                     printShort(pw, ut);
@@ -233,6 +243,10 @@ void getSpecifiedUser(const char* user){ // -m
             if(s_option){
                 printShort(pw, NULL);
             } else{
+                if(!printed){
+                    printInit(pw);
+                    printed = true;
+                }
                 printLong(pw, NULL);
             }
         }
@@ -307,7 +321,7 @@ void printShort(const struct passwd* pw, const struct utmp* ut){
     }
 }
 
-void printLong(const struct passwd* pw, const struct utmp* ut){
+void printInit(const struct passwd* pw){
     char* login = pw->pw_name;
     char* gecos = strdup(pw->pw_gecos); // Duplica la stringa per evitare modifiche dirette
     char* name = strsep(&gecos, ",");
@@ -317,6 +331,9 @@ void printLong(const struct passwd* pw, const struct utmp* ut){
         printf("Login: %-32s Name:\n", login);
     }
     printf("Directory: %-28s Shell: %-23s\n", pw->pw_dir, pw->pw_shell);
+}
+
+void printLong(const struct passwd* pw, const struct utmp* ut){
     if(ut != NULL){
         printSpecificUTMP(ut);
     } else {
