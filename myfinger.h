@@ -23,6 +23,7 @@ void getSpecifiedUserPW(const char* user);
 bool checkAsterisk(const char* line);
 void printShort(const struct passwd* pw, const struct utmp* ut);
 void printLong(const struct passwd* pw, const struct utmp* ut);
+void printInit(const struct passwd* pw);
 void handle_no_names();
 void handle_names(char** names, int names_count);
 
