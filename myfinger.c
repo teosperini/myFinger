@@ -109,7 +109,6 @@ void getActiveUsers(){
     bool userEncountered = false;
 
     while ((ut = getutent()) != NULL) {
-        struct passwd *pw;
         if (ut->ut_type == USER_PROCESS) {
             char* user = ut->ut_user;
             for (int i = 0; i < numEncounteredUsers; ++i) {
@@ -119,10 +118,9 @@ void getActiveUsers(){
                 }
             }
             if (!userEncountered) {
-                strcpy(encounteredUsers[numEncounteredUsers], user);
+                strncpy(encounteredUsers[numEncounteredUsers], user, UT_NAMESIZE);
                 ++numEncounteredUsers;
                 userEncountered = false;
-                printf("the user is %s\n", user);
                 if(!m_option){
                     getSpecifiedAll(user);
                 } else {
@@ -133,7 +131,6 @@ void getActiveUsers(){
     }
     endutent();
 }
-
 
 
 void getSpecifiedAll(char* user){
@@ -183,9 +180,48 @@ void getSpecifiedAll(char* user){
             }
             endutent();
 
-            // se non ho trovato l'utente in utmp, provo in wtmp per il last login
+
             if (!utmp_found) {
-                //if 
+// ################ TODO ############ se non ho trovato l'utente in utmp, provo in wtmp per il last login
+    
+
+//ALLO A FUNZIONARE FUNZIONA, MO VA ADATTATO, SIUM
+
+    struct utmp ut;
+    int wtmp_fd;
+    time_t last_login_time = 0;
+    char* target_username = user; // Cambia "target_user" con l'username desiderato
+
+    if ((wtmp_fd = open(MIAO, O_RDONLY)) == -1) {
+        perror("Errore nell'apertura del file wtmp");
+        exit(EXIT_FAILURE);
+    }
+
+    while (read(wtmp_fd, &ut, sizeof(struct utmp)) == sizeof(struct utmp)) {
+        if (strncmp(ut.ut_name, target_username, UT_NAMESIZE) == 0 && ut.ut_type == USER_PROCESS) {
+            // Trovato un match per l'utente
+            if (ut.ut_tv.tv_sec > last_login_time) {
+                last_login_time = ut.ut_tv.tv_sec;
+            }
+        }
+    }
+
+    if (last_login_time != 0) {
+        // Stampiamo il last login time
+        printf("Last login time per l'utente %s: %s", target_username, formatTime(last_login_time, true));
+    } else {
+        printf("Nessun login trovato per l'utente %s\n", target_username);
+    }
+
+    close(wtmp_fd);
+
+
+
+
+
+
+
+
                 if(s_option){
                     printShort(pw, NULL);
                 } else{
