@@ -3,16 +3,19 @@
 
 #include <stdio.h>
 #include <utmp.h>
+#include <utmpx.h>
 #include <pwd.h>
 #include <string.h>
 #include <time.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <ctype.h>
 #include <sys/stat.h>
 #include <limits.h>
 
+#define MIAO "/var/log/wtmp"
 #define MAX_USERS 100  // Numero massimo di utenti
 #define MAX_NAME_LENGTH 32  // Lunghezza massima del nome utente
 
