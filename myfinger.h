@@ -19,9 +19,9 @@
 #define MAX_USERS 100  // Numero massimo di utenti
 #define MAX_NAME_LENGTH 32  // Lunghezza massima del nome utente
 
+void printSpecificWTMP(const struct utmp* ut, char* wtmp);
 void getActiveUsers();
-void getSpecifiedUser(const char* user);
-void getSpecifiedAll();
+void getSpecifiedUser(const char* user, bool option);
 char* formatTime(const time_t login_time, bool login);
 void printSpecificUTMP(const struct utmp* ut);
 void printSpecificPW(const struct passwd* pw);
