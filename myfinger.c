@@ -5,7 +5,7 @@ bool m_option = false;
 bool s_option = false;
 bool p_option = false;
 bool intestazione = false;
-
+//forse array globale persone trovate
 
 int main(int argc, char** argv) {
     int opt;
@@ -37,7 +37,6 @@ int main(int argc, char** argv) {
                 // Handle other errors
                 abort();
         }
-
     }
     for(int i = 1; i < argc; ++i){
         if (strncmp(argv[i], "-", 1) == 0){
@@ -84,6 +83,7 @@ int main(int argc, char** argv) {
 }
 
 void handle_no_names(){ //short
+    s_option = true;
     getActiveUsers();
 }
 
@@ -102,31 +102,26 @@ void handle_names(char** names, int names_count){ //long
 
 
 void getActiveUsers(){
-    s_option = true;
     struct utmp* ut;
     setutent(); // Imposta il puntatore all'inizio del file /run/utmp
     char encounteredUsers[MAX_USERS][MAX_NAME_LENGTH]; // Array per memorizzare gli utenti già incontrati
     int numEncounteredUsers = 0; // Contatore degli utenti già incontrati
-    bool userEncountered = false;
 
     while ((ut = getutent()) != NULL) {
         if (ut->ut_type == USER_PROCESS) {
             char* user = ut->ut_user;
             for (int i = 0; i < numEncounteredUsers; ++i) {
                 if (strcmp(encounteredUsers[i], user) == 0) {
-                    userEncountered = true;
                     break;
                 }
             }
-            if (!userEncountered) {
-                strncpy(encounteredUsers[numEncounteredUsers], user, UT_NAMESIZE);
-                ++numEncounteredUsers;
-                userEncountered = false;
-                if(m_option){
-                    getSpecifiedUser(user, true);
-                } else {
-                    getSpecifiedUser(user, false);
-                }
+            strncpy(encounteredUsers[numEncounteredUsers], user, UT_NAMESIZE);
+            ++numEncounteredUsers;
+
+            if(m_option){
+                getSpecifiedUser(user, true);
+            } else {
+                getSpecifiedUser(user, false);
             }
         }
     }
@@ -292,86 +287,97 @@ void printStartL(const struct passwd* pw){
     char* gecos = strdup(pw->pw_gecos); // Duplica la stringa per evitare modifiche dirette
     if(gecos != NULL){
         char* name = strsep(&gecos, ",");
+        if(name == NULL) {
+            name = strdup("");
+        }
+
         char* office = strsep(&gecos, ",");
-        if (office == NULL) {
+        if(office == NULL) {
             office = strdup("");
         }
         
         char* workNumber = strsep(&gecos, ",");
-        if (workNumber == NULL) {
+        if(workNumber == NULL) {
             workNumber = strdup("");
         } else {
             workNumber = formatPhoneNumber(workNumber);
         }
 
         char* homeNumber = strsep(&gecos, ",");
-        if (homeNumber == NULL) {
+        if(homeNumber == NULL) {
             homeNumber = strdup("");
         } else {
             homeNumber = formatPhoneNumber(homeNumber);
         }
 
-
-        if (name != NULL){
-            printf("Login: %-32s Name: %s\n", login, name);
-        } else {
-            printf("Login: %-32s Name:\n", login);
-        }
-        printf("Directory: %-28s Shell: %-23s\n", pw->pw_dir, pw->pw_shell);
-
-        //printNumberOffice(gecos, true); //true for L option, false for S option
-
-        
-        char* finalString =  (char*)malloc(250 * sizeof(char));
-        if(finalString == NULL){
-            fprintf(stderr, "Errore durante l'allocazione di memoria per l'utente.\n");
-            return;
-        }
-
-        if(strcmp(office, "") == 0){
-            strcpy(finalString, "Office Phone: ");
-        } else {
-            strcpy(finalString, "Office: ");
-            strcat(finalString, office);
-        }
-
-        if(strcmp(workNumber, "") != 0){
-            if(strcmp(finalString, "Office Phone: ") != 0){
-                strcat(finalString, ", ");
+        if(!s_option || (l_option && s_option)){ //l_option
+            if(strcmp(name, "") == 0){
+                printf("Login: %-32s Name:\n", login);
+            } else {
+                printf("Login: %-32s Name: %s\n", login, name);
             }
-            strcat(finalString, workNumber);
-            free(workNumber);
-        } else {
-            if(strcmp(finalString, "Office Phone: ") == 0){
-                strcpy(finalString, "");
+            printf("Directory: %-28s Shell: %-23s\n", pw->pw_dir, pw->pw_shell);
+
+            //printNumberOffice(gecos, true); //true for L option, false for S option
+
+            
+            char* finalString =  (char*)malloc(250 * sizeof(char));
+            if(finalString == NULL){
+                fprintf(stderr, "Errore durante l'allocazione di memoria per l'utente.\n");
+                return;
             }
-        }
 
-        int count = strlen(finalString);
-        int maxLenght = 40;
-
-        if(count > maxLenght){
-            strcat(finalString, "\n");
-        } else {
-            if(strcmp(finalString, "") != 0){
-                for(int i = 0; i < maxLenght - count; i++){
-                    strcat(finalString, " ");
-                }  
+            if(strcmp(office, "") == 0){
+                strcpy(finalString, "Office Phone: ");
+            } else {
+                strcpy(finalString, "Office: ");
+                strcat(finalString, office);
             }
-        }
 
-        if(strcmp(homeNumber, "") != 0){
-            strcat(finalString, "Home Number: ");
-            strcat(finalString, homeNumber);
-            strcat(finalString, "\n");
-            free(homeNumber);
-        } else {
-            if(strcmp(finalString, "") != 0){
+            if(strcmp(workNumber, "") != 0){
+                if(strcmp(finalString, "Office Phone: ") != 0){
+                    strcat(finalString, ", ");
+                }
+                strcat(finalString, workNumber);
+                free(workNumber);
+            } else {
+                if(strcmp(finalString, "Office Phone: ") == 0){
+                    strcpy(finalString, "");
+                }
+            }
+
+            int count = strlen(finalString);
+            int maxLenght = 40;
+
+            if(count > maxLenght){
                 strcat(finalString, "\n");
+            } else {
+                if(strcmp(finalString, "") != 0){
+                    for(int i = 0; i < maxLenght - count; i++){
+                        strcat(finalString, " ");
+                    }  
+                }
             }
+
+            if(strcmp(homeNumber, "") != 0){
+                strcat(finalString, "Home Number: ");
+                strcat(finalString, homeNumber);
+                strcat(finalString, "\n");
+                free(homeNumber);
+            } else {
+                if(strcmp(finalString, "") != 0){
+                    strcat(finalString, "\n");
+                }
+            }
+            printf("%s",finalString);
+            free(finalString);
+        } else { //s_option
+            if(!intestazione){
+                printf("Login\t  Name\t\t   Tty\t    Idle  Login Time   Office\t  Office Phone\n");
+                intestazione = true;
+            }
+            // CONTINUARE AD INSERIRE I PEZZI DI STAMPA s_option PER UNIFICARE LA FUNZIONE
         }
-        printf("%s",finalString);
-        free(finalString);
     }
 }
 
@@ -400,7 +406,6 @@ bool checkAsterisk(const char* line){
 
     // Concatena ut->ut_line al buffer
     strcat(file_path, line);
-    //printf("\n%s\n", file_path);
 
     struct stat file_stat;
     if (stat(file_path, &file_stat) == 0) {
@@ -449,7 +454,7 @@ char* formatTime(const time_t time_seconds, bool isLogin) {
     double diff_seconds = difftime(current_time, time_seconds);
 
     struct tm *time_info = localtime(&time_seconds);
-    char *time_buffer = malloc(100 * sizeof(char));
+    char* time_buffer = malloc(100 * sizeof(char));
     if (time_buffer == NULL) {
         return NULL;
     }
