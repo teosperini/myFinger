@@ -5,7 +5,6 @@ bool m_option = false;
 bool s_option = false;
 bool p_option = false;
 bool intestazione = false;
-//forse array globale persone trovate
 
 int main(int argc, char** argv) {
     int opt;
@@ -37,7 +36,9 @@ int main(int argc, char** argv) {
                 // Handle other errors
                 abort();
         }
+
     }
+
     for(int i = 1; i < argc; ++i){
         if (strncmp(argv[i], "-", 1) == 0){
             continue;
@@ -88,13 +89,24 @@ void handle_no_names(){ //short
 }
 
 void handle_names(char** names, int names_count){ //long
+    char** copies = (char**)malloc(sizeof(char*)*names_count+2);
+    if (copies == NULL) {
+        fprintf(stderr, "Errore durante l'allocazione di memoria per l'aggiunta di un nome.\n");
+        exit(EXIT_FAILURE);
+    }
     for (int i = 0; i < names_count; i++) {
         if(m_option){
             //ricerco gli utenti solo per username
-            getSpecifiedUser(names[i], true);
+            getSpecifiedUser(names[i], true, copies);
+            if(i < names_count -1){
+                printf("\n");
+            }
         } else {
             //ricerco gli utenti anche per nome in gecos
-            getSpecifiedUser(names[i], false);
+            getSpecifiedUser(names[i], false, copies);
+            if(i < names_count -1){
+                printf("\n");
+            }
         }
     }
     free(names);
@@ -106,30 +118,36 @@ void getActiveUsers(){
     setutent(); // Imposta il puntatore all'inizio del file /run/utmp
     char encounteredUsers[MAX_USERS][MAX_NAME_LENGTH]; // Array per memorizzare gli utenti già incontrati
     int numEncounteredUsers = 0; // Contatore degli utenti già incontrati
-
+    bool userEncountered = false;
     while ((ut = getutent()) != NULL) {
         if (ut->ut_type == USER_PROCESS) {
             char* user = ut->ut_user;
             for (int i = 0; i < numEncounteredUsers; ++i) {
                 if (strcmp(encounteredUsers[i], user) == 0) {
+                    userEncountered = true;
                     break;
                 }
             }
-            strncpy(encounteredUsers[numEncounteredUsers], user, UT_NAMESIZE);
-            ++numEncounteredUsers;
-
-            if(m_option){
-                getSpecifiedUser(user, true);
-            } else {
-                getSpecifiedUser(user, false);
+            if (!userEncountered) {
+                strncpy(encounteredUsers[numEncounteredUsers], user, UT_NAMESIZE);
+                ++numEncounteredUsers;
+                userEncountered = false;
+                if(m_option){
+                    getSpecifiedUser(user, true, NULL);
+                    printf("\n");
+                } else {
+                    getSpecifiedUser(user, false, NULL);
+                    printf("\n");
+                }
             }
         }
     }
     endutent();
+
 }
 
 
-void getSpecifiedUser(const char* user, bool option){
+void getSpecifiedUser(const char* user, bool option, char** copies){
     struct passwd *pw;
     setpwent();
     bool user_found = false; // If the user exists
@@ -159,10 +177,15 @@ void getSpecifiedUser(const char* user, bool option){
         //se in questa entry ho trovato il nome dell'utente
         if(passwd_found){
             //PRINT THE BEGINNING OF LONG OPTION FOR THAT USER
+            user_found = true;
+
+            if(checkPresence(pw->pw_name, copies)){
+                continue;
+            }
+
             if(!s_option || (l_option && s_option)){
                 printStartL(pw);
             }
-            user_found = true;
             struct utmp* ut;
             setutent();
             bool utmp_found = false;
@@ -171,7 +194,8 @@ void getSpecifiedUser(const char* user, bool option){
                     if(!s_option || (l_option && s_option)){
                         printLong(pw, ut);
                     } else{
-                        printShort(pw, ut);
+                        //printShort(pw, ut);
+                        printStartL(pw);
                     }
                     utmp_found = true;
                 }
@@ -202,14 +226,22 @@ void getSpecifiedUser(const char* user, bool option){
                     }
                 }
                 if (last_login_time != 0 ) {
-                    char* time = formatTime(last_login_time, true);
-                    printf("Last login %s on %s\n", time, shell);
-                    free(time);
-                } else {
-                    if(s_option){
-                        printShort(pw, NULL);
-                    } else{
+                    //if()
+                    if(!s_option || (l_option && s_option)){
                         printLong(pw, NULL);
+                        char* time = formatTime(last_login_time, true);
+                        printf("Last login %s on %s\n", time, shell);
+                        free(time);
+                    } else{
+                        //printShort(pw, NULL);
+                        printStartL(pw);
+                    }
+                } else {
+                    if(!s_option || (l_option && s_option)){
+                        printLong(pw, NULL);
+                    } else{
+                        //printShort(pw, NULL);
+                        printStartL(pw);
                     }
                 }
 
@@ -226,6 +258,31 @@ void getSpecifiedUser(const char* user, bool option){
     if(!user_found){
         printf("myfinger: %s: no such user.\n", user);
     }
+}
+
+
+
+
+bool checkPresence(const char* name, char** copies) {
+    if(copies != NULL){
+        int count = 0;
+        //printf("suca\n");
+        while (copies[count] != NULL) {
+            count++;
+        }
+        for (int i = 0; i < count; i++) {
+            if (strcmp(name, copies[i]) == 0) {
+                return true;
+            }
+        }
+        copies[count] = strdup(name);
+        if (copies[count] == NULL) {
+            fprintf(stderr, "Errore durante la duplicazione del nome per l'aggiunta.\n");
+            exit(EXIT_FAILURE);
+        }
+        copies[count + 1] = NULL;
+    }
+    return false;
 }
 
 
@@ -262,7 +319,7 @@ void printShort(const struct passwd* pw, const struct utmp* ut){
         intestazione = true;
     }
     printf("%-10s", pw->pw_name);
-    char* gecos = strdup(pw->pw_gecos); // Duplica la stringa per evitare modifiche dirette
+    char* gecos = strdup(pw->pw_gecos);
     char* name = strsep(&gecos, ",");
     if (name != NULL){
         printf("%-.16s", name);
@@ -284,7 +341,7 @@ void printShort(const struct passwd* pw, const struct utmp* ut){
 
 void printStartL(const struct passwd* pw){
     char* login = pw->pw_name;
-    char* gecos = strdup(pw->pw_gecos); // Duplica la stringa per evitare modifiche dirette
+    char* gecos = strdup(pw->pw_gecos);
     if(gecos != NULL){
         char* name = strsep(&gecos, ",");
         if(name == NULL) {
@@ -318,9 +375,6 @@ void printStartL(const struct passwd* pw){
             }
             printf("Directory: %-28s Shell: %-23s\n", pw->pw_dir, pw->pw_shell);
 
-            //printNumberOffice(gecos, true); //true for L option, false for S option
-
-            
             char* finalString =  (char*)malloc(250 * sizeof(char));
             if(finalString == NULL){
                 fprintf(stderr, "Errore durante l'allocazione di memoria per l'utente.\n");
@@ -355,7 +409,7 @@ void printStartL(const struct passwd* pw){
                 if(strcmp(finalString, "") != 0){
                     for(int i = 0; i < maxLenght - count; i++){
                         strcat(finalString, " ");
-                    }  
+                    }
                 }
             }
 
@@ -371,11 +425,20 @@ void printStartL(const struct passwd* pw){
             }
             printf("%s",finalString);
             free(finalString);
-        } else { //s_option
+
+        } else {    //s_option
+
             if(!intestazione){
                 printf("Login\t  Name\t\t   Tty\t    Idle  Login Time   Office\t  Office Phone\n");
                 intestazione = true;
             }
+            printf("%-10s", login);
+            if (strcmp(name,"")!=0){
+                printf("%-.16s", name);
+            } else {
+                printf("\t\t");
+            }
+            printf("\n");
             // CONTINUARE AD INSERIRE I PEZZI DI STAMPA s_option PER UNIFICARE LA FUNZIONE
         }
     }
@@ -397,15 +460,10 @@ void printEndL(const struct passwd* pw){
     }
 }
 
-
-
 bool checkAsterisk(const char* line){
     char file_path[256];
-    // Copy /dev/ into the buffer
-    strcpy(file_path, "/dev/");
-
-    // Concatena ut->ut_line al buffer
-    strcat(file_path, line);
+    strcpy(file_path, "/dev/"); // Copy /dev/ into the buffer
+    strcat(file_path, line); // Concatena ut->ut_line al buffer
 
     struct stat file_stat;
     if (stat(file_path, &file_stat) == 0) {
