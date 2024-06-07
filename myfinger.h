@@ -21,7 +21,8 @@
 
 void printSpecificWTMP(const struct utmp* ut, char* wtmp);
 void getActiveUsers();
-void getSpecifiedUser(const char* user, bool option);
+void getSpecifiedUser(const char* user, bool option, char** copies);
+bool checkPresence(const char* name, char** copies);
 char* formatTime(const time_t login_time, bool login);
 void printSpecificUTMP(const struct utmp* ut);
 void printSpecificPW(const struct passwd* pw);
