@@ -187,7 +187,7 @@ void getSpecifiedUser(const char* user, char** copies) {
             bool utmp_found = false;
             bool wtmp_print = true;
             while ((ut = getutent()) != NULL) {
-                if (ut->ut_type == USER_PROCESS && strncmp(ut->ut_user, user, UT_NAMESIZE) == 0) {
+                if (ut->ut_type == USER_PROCESS && strncmp(ut->ut_user, pw->pw_name, UT_NAMESIZE) == 0) {
                     userUTMP->time = ut->ut_tv.tv_sec;
                     strncpy(userUTMP->tty, ut->ut_line, sizeof(userUTMP->tty));
                     strncpy(userUTMP->host, ut->ut_host, sizeof(userUTMP->host));
@@ -218,7 +218,7 @@ void getSpecifiedUser(const char* user, char** copies) {
                 strcpy(shell, "");
 
                 while (read(wtmp_fd, &wt, sizeof(struct utmp)) == sizeof(struct utmp)) {
-                    if (strncmp(wt.ut_name, user, UT_NAMESIZE) == 0 && wt.ut_type == USER_PROCESS) {
+                    if (strncmp(wt.ut_name, pw->pw_name, UT_NAMESIZE) == 0 && wt.ut_type == USER_PROCESS) {
                         if (wt.ut_tv.tv_sec > last_login_time) {
                             last_login_time = wt.ut_tv.tv_sec;
                             strncpy(shell, wt.ut_line, 20);
@@ -450,6 +450,7 @@ void printLong(UserUTMP* user, bool wtmp){
 }
 
 void printEndL(const struct passwd* pw){
+    
     printf("No Plan.\n");
 }
 
