@@ -1,7 +1,5 @@
 #include "myfinger.h"
 
-struct UserUTMP;
-
 bool l_option = false;
 bool m_option = false;
 bool s_option = false;
@@ -38,7 +36,6 @@ int main(int argc, char** argv) {
                 // Handle other errors
                 abort();
         }
-
     }
 
     for(int i = 1; i < argc; ++i){
@@ -104,7 +101,6 @@ void handle_names(char** names, int names_count){ //long
 }
 
 
-
 void getActiveUsers(){
     struct utmp* ut;
     setutent(); // Imposta il puntatore all'inizio del file /run/utmp
@@ -129,7 +125,6 @@ void getActiveUsers(){
         }
     }
     endutent();
-
 }
 
 
@@ -260,8 +255,6 @@ void getSpecifiedUser(const char* user, char** copies) {
 }
 
 
-
-
 bool checkPresence(const char* name, char** copies) {
     if(copies != NULL){
         int count = 0;
@@ -276,7 +269,7 @@ bool checkPresence(const char* name, char** copies) {
         }
         copies[count] = strdup(name);
         if (copies[count] == NULL) {
-            fprintf(stderr, "Errore durante la duplicazione del nome per l'aggiunta.\n");
+            fprintf(stderr, "Errore durante la duplicazione del nome nel checkPresence.\n");
             exit(EXIT_FAILURE);
         }
         copies[count + 1] = NULL;
@@ -285,38 +278,6 @@ bool checkPresence(const char* name, char** copies) {
 }
 
 
-
-
-
-
-
-//Potrei creare delle struct UserInfo e SessionInfo
-//Passo UserInfo ad una funzione, poi da quella funzione cerco tutte le SessionInfo per quella funzione
-
-//Nel caso long: Per ogni UserInfo stampo la parte fissa, poi cerco e stampo tutte le SessionInfo, poi alla
-//fine stampo l'ultima parte dell'UserInfo, cioè il file .Plan
-
-//Nel caso short: stampo la prima volta i nomi delle colonne. Poi stampo ogni volta la UserInfo (utente e nome) e
-//una SessionInfo
-
-// In generale, posso passare il passwd di ogni utente trovat alla funzione che stampa:
-    // in caso di -l:
-        //la parte iniziale comune, con utente, nome , ecc
-        //le parti intermedie singole di ogni utmp
-        //la parte finale comune, file .Plan
-    // in caso di -s:
-        //la parte fissa iniziale
-        //La parte iniziale di ogni entry, cioè quella contenuta nella struct pw
-        //per ogni print della parte iniziale di pw, la parte di utmp (ogni riga dello stesso utente è
-            // un suo accesso)
-        //
-
-
-
-
-
-
-//LOGGED serve a capire se la data in utmp è il last login o il tempo di login
 void printStartL(const struct passwd* pw){
     char* login = pw->pw_name;
     char* gecos = strdup(pw->pw_gecos);
@@ -450,8 +411,28 @@ void printLong(UserUTMP* user, bool wtmp){
 }
 
 void printEndL(const struct passwd* pw){
-    
-    printf("No Plan.\n");
+    char plan_path[1024];
+    snprintf(plan_path, sizeof(plan_path), "%s/.plan", pw->pw_dir);
+
+    struct stat st;
+    if (stat(plan_path, &st) == -1) {
+        printf("No Plan.\n");
+        return;
+    }
+
+    FILE *file = fopen(plan_path, "r");
+    if (file == NULL) {
+        perror("fopen");
+        return;
+    }
+
+    printf("Plan:\n");
+    char buffer[256];
+    while (fgets(buffer, sizeof(buffer), file) != NULL) {
+        printf("%s", buffer);
+    }
+
+    fclose(file);
 }
 
 void printStartS(){
@@ -525,7 +506,7 @@ void printShort(const struct passwd* pw, UserUTMP* userUTMP, bool wtmp){
             }
             printf("\n");
         } else {
-            printf("  *\t      *   No logins\n");
+            printf("  *\t        *   No logins\n");
         }
     }
 }
@@ -550,9 +531,9 @@ bool checkAsterisk(const char* line){
 char* formatTime(const time_t time_seconds, bool isLogin) {
     time_t current_time = time(NULL);
     double diff_seconds = difftime(current_time, time_seconds);
-
     struct tm *time_info = localtime(&time_seconds);
-    char* time_buffer = malloc(100 * sizeof(char));
+    int size = 100;
+    char* time_buffer = malloc(size * sizeof(char));
     if (time_buffer == NULL) {
         return NULL;
     }
@@ -564,16 +545,26 @@ char* formatTime(const time_t time_seconds, bool isLogin) {
             // Formatta la data e l'ora con l'anno e memorizzale nel buffer
         } else {
             // Se sono trascorsi meno di 6 mesi, formatta la data e l'ora con ore e minuti
-            strftime(time_buffer, 100, "%a %b %Y (%Z)", time_info);
+            strftime(time_buffer, 100, "%d %b %Y", time_info);
         }
     } else {
-        int hours = diff_seconds / 3600;
-        int minutes = ((int)diff_seconds % 3600) / 60;
-        if(hours > 24){
-            hours = hours / 24;
-            sprintf(time_buffer, "    %d days idle", hours);
-        } else {
-            sprintf(time_buffer, "    %d hour %d minutes idle", hours, minutes);
+        if (diff_seconds < 3600) { // Minore di un'ora
+            // Stampo solo i minuti
+            int minutes = (int)(diff_seconds / 60);
+            snprintf(time_buffer, size, "    %d minutes idle", minutes);
+        } else if (diff_seconds < 86400) { // Minore di un giorno
+            // Stampo ore e minuti
+            int hours = (int)(diff_seconds / 3600);
+            int minutes = (int)(diff_seconds / 60) % 60;
+            snprintf(time_buffer, size, "    %d hour %d minutes idle", hours, minutes);
+        } else if (diff_seconds < 31536000) { // Minore di un anno
+            // Stampo i giorni
+            int days = (int)(diff_seconds / 86400);
+            snprintf(time_buffer, size, "    %d days idle", days);
+        } else { // Maggiore di un anno
+            // Stampo gli anni
+            int years = (int)(diff_seconds / 31536000);
+            snprintf(time_buffer, size, "    %d years idle", years);
         }
     }
 
@@ -592,7 +583,12 @@ char* formatShortTime(const time_t time_seconds, bool isLogin) {
         return NULL;
     }
     if (isLogin) {
-        strftime(time_buffer, size, "%b %d %H:%M", time_info);
+        if (diff_seconds < 31536000){
+            strftime(time_buffer, size, "%b %d %H:%M", time_info);
+        } else {
+            int years = (int)(diff_seconds / 31536000);
+            snprintf(time_buffer, size, "%dy", years);
+        }
     } else {
         if (diff_seconds < 3600) { // Minore di un'ora
             // Stampo solo i minuti
@@ -602,7 +598,7 @@ char* formatShortTime(const time_t time_seconds, bool isLogin) {
             // Stampo ore e minuti
             int hours = (int)(diff_seconds / 3600);
             int minutes = (int)(diff_seconds / 60) % 60;
-            snprintf(time_buffer, 20, "%d:%02d", hours, minutes);
+            snprintf(time_buffer, size, "%d:%02d", hours, minutes);
         } else if (diff_seconds < 31536000) { // Minore di un anno
             // Stampo i giorni
             int days = (int)(diff_seconds / 86400);
