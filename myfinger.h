@@ -19,20 +19,28 @@
 #define MAX_USERS 100  // Numero massimo di utenti
 #define MAX_NAME_LENGTH 32  // Lunghezza massima del nome utente
 
-void printSpecificWTMP(const struct utmp* ut, char* wtmp);
-void getActiveUsers();
-void getSpecifiedUser(const char* user, bool option, char** copies);
-bool checkPresence(const char* name, char** copies);
-char* formatTime(const time_t login_time, bool login);
-void printSpecificUTMP(const struct utmp* ut);
-void printSpecificPW(const struct passwd* pw);
-char* formatPhoneNumber(const char* phoneNumber);
-bool checkAsterisk(const char* line);
-void printShort(const struct passwd* pw, const struct utmp* ut);
-void printLong(const struct passwd* pw, const struct utmp* ut);
-void printStartL(const struct passwd* pw);
-void printEndL(const struct passwd* pw);
+typedef struct {
+    time_t time;  //ut->ut_ut_tv.tv_sec
+    char tty[10];   //ut->ut_line
+    char host[10];  //ut->ut_host
+} UserUTMP;
+
 void handle_no_names();
 void handle_names(char** names, int names_count);
 
+void getActiveUsers();
+void getSpecifiedUser(const char* user, char** copies);
+
+bool checkPresence(const char* name, char** copies);
+bool checkAsterisk(const char* line);
+
+void printStartL(const struct passwd* pw);
+void printLong(UserUTMP* user, bool wtmp);
+void printEndL(const struct passwd* pw);
+void printStartS();
+void printShort(const struct passwd* pw, UserUTMP* userUTMP, bool wtmp);
+
+char* formatPhoneNumber(const char* phoneNumber);
+char* formatTime(const time_t login_time, bool login);
+char* formatShortTime(const time_t time_seconds, bool isLogin);
 #endif /* MYFINGER_H */
