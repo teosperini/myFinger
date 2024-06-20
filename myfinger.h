@@ -25,11 +25,10 @@ typedef struct {
     char host[10];  //ut->ut_host
 } UserUTMP;
 
-void handle_no_names();
-void handle_names(char** names, int names_count);
+void handle_active_users();
+void handle_specified_users(char** names, int size);
 
-void getActiveUsers();
-void getSpecifiedUser(const char* user, char** copies);
+void lookup_user_info(const char* user, char** copies);
 
 bool checkPresence(const char* name, char** copies);
 bool checkAsterisk(const char* line);
