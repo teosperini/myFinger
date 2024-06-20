@@ -1,35 +1,39 @@
 #include "myfinger.h"
 
+// The four possible finger options
 bool l_option = false;
 bool m_option = false;
 bool s_option = false;
 bool p_option = false;
-bool intestazione = false;
+
+// Flag needed to print the header in the short format
+bool header = false;
 
 int main(int argc, char** argv) {
     int opt;
-    char** names = NULL;
-    int names_count = 0;
-    while ((opt = getopt(argc, argv, "lmsp")) != -1) {
+    char** names = malloc(sizeof(char*));   // The array names will contain the names given in input
+    int names_count = 0;                        // Index and counter for the array names
 
+    while ((opt = getopt(argc, argv, "lmsp")) != -1) {
         switch (opt) {
             case 'l':
-                // Handle -l option
+                // Handle l option
                 l_option = true;
                 break;
             case 'm':
-                // Handle -m option
-                m_option = true;
+                // Handle m option
+                m_option = true;\
                 break;
             case 's':
-                // Handle -s option
+                // Handle s option
                 s_option = true;
                 break;
             case 'p':
-                // Handle -p option
+                // Handle p option
                 p_option = true;
                 break;
             case '?':
+                // Handle unknown options error
                 fprintf(stderr, "usage: myfinger [-lmps] [login ...]\n");
                 return 1;
             default:
@@ -38,138 +42,145 @@ int main(int argc, char** argv) {
         }
     }
 
-    for(int i = 1; i < argc; ++i){
-        if (strncmp(argv[i], "-", 1) == 0){
-            continue;
-        } else{
-            bool try = false;
-            for(int j = 0; j < names_count; ++j){
-                if(strcmp(names[j], argv[i]) == 0){
-                    try = true;
-                }
+    // Filling the names array
+    for(int i = optind; i < argc; ++i){
+        bool try = false;
+        // Checking if the current name is already present in the array
+        for(int j = 0; j < names_count; ++j){
+            if(strcmp(names[j], argv[i]) == 0){
+                try = true;
             }
-            if(try){
-                continue;
-            }
-            names = (char**)realloc(names, (names_count + 1) * sizeof(char*));
-            if (names == NULL) {
-                fprintf(stderr, "Errore durante l'allocazione di memoria per i nomi.\n");
-                return 1;
-            }
-
-            names[names_count++] = argv[i];
         }
+        // If the name is already present, skip the cycle
+        if(try){
+            continue;
+        }
+        // If it is not, the array gets resized and the name gets added
+        names = (char**)realloc(names, (names_count + 1) * sizeof(char*));
+        if (names == NULL) {
+            fprintf(stderr, "An error occurred during the memory allocation for the names array.\n");
+            return 1;
+        }
+        names[names_count++] = argv[i];
     }
 
-    /*  casi possibili:
-        - nessun nome: cerco gli utenti attivi, quindi prima UTMP e poi PASSWD
-            -s di default
-            -m non ha effetto
-            -l solo se specificato
-            -p solo se -l specificato
-        - con nome: cerco tra tutti gli utenti, quindi prima PASSWD e poi UTMP
-            -l di default
-            -m ha effetto
-            -s solo se specificato
-            -p solo se non è specificato -s
+    /*  possible cases:
+        - no names: look for active users
+            -s default
+            -m no effect
+            -l if specified
+            -p if specified and -l is true
+        - with names: look for the specified users
+            -l default
+            -m if speciified
+            -s if specified
+            -p if specified and -s is false (or -l && -s == true)
     */
 
     if (names_count == 0){
-        handle_no_names();
+        handle_active_users();
     } else {
-        handle_names(names, names_count);
+        handle_specified_users(names, names_count);
     }
     return 0;
 }
 
-void handle_no_names(){ //short
+/*
+ * This function look for the current active users,
+ * then proceeds to call the core function over them
+ * If no format option is specified, it defaults to short
+ */
+void handle_active_users(){
     s_option = true;
-    getActiveUsers();
-}
-
-void handle_names(char** names, int names_count){ //long
-    char** copies = (char**)malloc(sizeof(char*)*names_count+2);
-    if (copies == NULL) {
-        fprintf(stderr, "Errore durante l'allocazione di memoria per l'aggiunta di un nome.\n");
-        exit(EXIT_FAILURE);
-    }
-    for (int i = 0; i < names_count; i++) {
-        getSpecifiedUser(names[i], copies);
-    }
-    free(names);
-    free(copies);
-}
-
-
-void getActiveUsers(){
     struct utmp* ut;
-    setutent(); // Imposta il puntatore all'inizio del file /run/utmp
-    char encounteredUsers[MAX_USERS][MAX_NAME_LENGTH]; // Array per memorizzare gli utenti già incontrati
-    int numEncounteredUsers = 0; // Contatore degli utenti già incontrati
-    bool userEncountered = false;
-    while ((ut = getutent()) != NULL) {
-        if (ut->ut_type == USER_PROCESS) {
+    setutent(); // Set the pointer at the beginning of the /run/utmp file
+    char encounteredUsers[MAX_USERS][MAX_NAME_LENGTH];  // Array to save the encountered users
+    int numEncounteredUsers = 0;                        // Index of the array
+    while ((ut = getutent()) != NULL) {                 // Iterating over the active entites
+        if (ut->ut_type == USER_PROCESS) {              // Checking if the entity is an user process
+            bool userEncountered = false;
             char* user = ut->ut_user;
-            for (int i = 0; i < numEncounteredUsers; ++i) {
-                if (strcmp(encounteredUsers[i], user) == 0) {
+            for (int i = 0; i < numEncounteredUsers; ++i) {     // Checking if the user is already
+                if (strcmp(encounteredUsers[i], user) == 0) {   // present in the array
                     userEncountered = true;
                     break;
                 }
             }
-            if (!userEncountered) {
+            if (!userEncountered) {         // If the user is a new user, print its finger
                 strncpy(encounteredUsers[numEncounteredUsers], user, UT_NAMESIZE);
                 ++numEncounteredUsers;
                 userEncountered = false;
-                getSpecifiedUser(user, NULL);
+                lookup_user_info(user, NULL);
             }
         }
     }
     endutent();
 }
 
+/*
+ * This function calls the core function over all the names given by the user prompt
+ * If no format option is specified, it defaults to long
+ */
+void handle_specified_users(char** names, int size){
+    char** copies = malloc(sizeof(char*)*size+2);   // Creating an array of copies
+    if (copies == NULL) {
+        fprintf(stderr, "Error allocating memory for adding a name\n");
+        exit(EXIT_FAILURE);
+    }
+    for (int i = 0; i < size; i++) {
+        lookup_user_info(names[i], copies);
+    }
+    free(names);
+    free(copies);
+}
 
-void getSpecifiedUser(const char* user, char** copies) {
+
+/*
+ * This is the core function of the program
+ * This function looks for the informations about the users firstly in the PASSWD file, then in the
+ * UTMP file
+ */
+void lookup_user_info(const char* user, char** copies) {
     struct passwd *pw;
     setpwent();
-    bool user_found = false; // If the user exists
-    while((pw = getpwent()) != NULL) {
+                                    // Function-global boolean that is false when no entry
+    bool user_found = false;        // in the passwd is found matching the user's username
+                                    // It is used to print the "no such user" label
+    while((pw = getpwent()) != NULL) {          // Iterating over every entry of the passwd file
         char* gecos = strdup(pw->pw_gecos);
         char* name = strsep(&gecos, ",");
-        char* singleName;
-        bool passwd_found = false; // To check if the current passwd entry matches the user
-        // Confronto esatto tra il nome utente e il campo pw_name
-        if(strcmp(user, pw->pw_name) == 0) {
-            passwd_found = true;
+        bool passwd_found = false;
+        if(strcmp(user, pw->pw_name) == 0) {    // Check if the current passwd entry perfectly
+            passwd_found = true;                // matches the user's unique username
         }
-        if(!m_option) {
-            // Confronto esatto tra il nome utente e il nome nel campo gecos
+        if(!m_option) {                         // If the m option is false then proceeds to look
+            char* singleName;                   // for the user's username in the first gecos field
             if(strcasecmp(user, name) == 0) {
                 passwd_found = true;
             }
-            // Verifica se ci sono ulteriori nomi all'interno del campo gecos
             while((singleName = strsep(&name, " "))) {
-                // Confronto esatto tra il nome utente e i nomi all'interno del campo gecos
                 if(strcasecmp(user, singleName) == 0) {
                     passwd_found = true;
                 }
             }
         }
 
-        //se in questa entry ho trovato il nome dell'utente
+        // If at least one comparision was successful, then look for the user's utmp/wtmp informations
         if(passwd_found) {
-            //se ho trovato almeno un utente con quel nome, allora non devo stampare che non esiste
-            user_found = true;
-
-            if(checkPresence(pw->pw_name, copies)) {
-                continue;
+            user_found = true;      // This sets true confirms (out of the while) that the user has
+                                    // been found
+            if(checkPresence(pw->pw_name, copies)) {    // If the name has already been printed
+                continue;                               // skip the cycle
             }
 
-            if(!s_option || (l_option && s_option)) {
-                printStartL(pw);
+            if(!s_option || (l_option && s_option)) {   // Print the first section of the finger output
+                printStartL(pw);                        // For the long option, it is printed every user
             } else {
-                printStartS();
+                printStartS();                          // For the short option, it is printed once
             }
 
+            // Creating and allocating memory for the UserUTMP struct that will contain the information
+            // needed to print about the user
             UserUTMP* userUTMP = malloc(sizeof(UserUTMP));
             if (userUTMP == NULL) {
                 fprintf(stderr, "Failed to allocate memory for userUTMP\n");
@@ -177,12 +188,14 @@ void getSpecifiedUser(const char* user, char** copies) {
             }
             memset(userUTMP, 0, sizeof(UserUTMP));
 
+            // Scanning the utmp file in search of the user
             struct utmp* ut;
             setutent();
             bool utmp_found = false;
             bool wtmp_print = true;
             while ((ut = getutent()) != NULL) {
                 if (ut->ut_type == USER_PROCESS && strncmp(ut->ut_user, pw->pw_name, UT_NAMESIZE) == 0) {
+                    // Filling the userUTMP struct with the needed utmp informations
                     userUTMP->time = ut->ut_tv.tv_sec;
                     strncpy(userUTMP->tty, ut->ut_line, sizeof(userUTMP->tty));
                     strncpy(userUTMP->host, ut->ut_host, sizeof(userUTMP->host));
@@ -198,25 +211,24 @@ void getSpecifiedUser(const char* user, char** copies) {
             }
             endutent();
 
+            // If the user is not found in the utmp file, look in the wtmp file
             if (!utmp_found) {
-                // Trying to search for the user in the wtmp log file
                 struct utmp wt;
                 int wtmp_fd;
                 time_t last_login_time = 0;
-                char* shell = malloc(sizeof(char) * 20);
 
+                // Trying to open the wtmp file
                 if ((wtmp_fd = open(WTMP_FILE, O_RDONLY)) == -1) {
-                    perror("Errore nell'apertura del file wtmp");
+                    perror("Error during the opening of the wtmp file");
                     exit(EXIT_FAILURE);
                 }
 
-                strcpy(shell, "");
-
+                // Manually scanning the wtmp file (there is no library that automatize such operationn)
                 while (read(wtmp_fd, &wt, sizeof(struct utmp)) == sizeof(struct utmp)) {
                     if (strncmp(wt.ut_name, pw->pw_name, UT_NAMESIZE) == 0 && wt.ut_type == USER_PROCESS) {
                         if (wt.ut_tv.tv_sec > last_login_time) {
+                            // Filling the userUTMP struct with the needed wtmp informations
                             last_login_time = wt.ut_tv.tv_sec;
-                            strncpy(shell, wt.ut_line, 20);
                             strncpy(userUTMP->tty, wt.ut_line, sizeof(userUTMP->tty));
                             strncpy(userUTMP->host, wt.ut_host, sizeof(userUTMP->host));
                             userUTMP->time = wt.ut_tv.tv_sec;
@@ -224,11 +236,13 @@ void getSpecifiedUser(const char* user, char** copies) {
                     }
                 }
                 if (last_login_time != 0) {
+                    // If the wtmp entry for the user is found, print it
                     if(!s_option || (l_option && s_option)) {
                         printLong(userUTMP, wtmp_print);
                     } else {
                         printShort(pw, userUTMP, wtmp_print);
                     }
+                    // Else print the informations with the "never logged in" label
                 } else {
                     if(!s_option || (l_option && s_option)) {
                         printLong(NULL, false);
@@ -237,14 +251,13 @@ void getSpecifiedUser(const char* user, char** copies) {
                     }
                 }
 
-                free(shell);
                 close(wtmp_fd);
             }
 
+            // In case of the long format, print the end
             if(!s_option || (l_option && s_option)) {
                 printEndL(pw);
             }
-
             free(userUTMP);
         }
     }
@@ -254,12 +267,13 @@ void getSpecifiedUser(const char* user, char** copies) {
     }
 }
 
-
+/*
+ * This function checks if the current user is already been printed
+ */
 bool checkPresence(const char* name, char** copies) {
     if(copies != NULL){
         int count = 0;
-        //printf("suca\n");
-        while (copies[count] != NULL) {
+        while(copies[count] != NULL) {
             count++;
         }
         for (int i = 0; i < count; i++) {
@@ -269,7 +283,7 @@ bool checkPresence(const char* name, char** copies) {
         }
         copies[count] = strdup(name);
         if (copies[count] == NULL) {
-            fprintf(stderr, "Errore durante la duplicazione del nome nel checkPresence.\n");
+            fprintf(stderr, "Error duplicating the name in the checkPresence function\n");
             exit(EXIT_FAILURE);
         }
         copies[count + 1] = NULL;
@@ -277,8 +291,12 @@ bool checkPresence(const char* name, char** copies) {
     return false;
 }
 
-
+/*
+ * If the long option is enabled, this function prints the common information for every log in for
+ * one user
+ */
 void printStartL(const struct passwd* pw){
+    // Getting the information from the gecos field
     char* login = pw->pw_name;
     char* gecos = strdup(pw->pw_gecos);
     if(gecos != NULL){
@@ -306,7 +324,7 @@ void printStartL(const struct passwd* pw){
             homeNumber = formatPhoneNumber(homeNumber);
         }
 
-
+        // Printing the correctly fomatted information
         if(strcmp(name, "") == 0){
             printf("Login: %-32s Name:\n", login);
         } else {
@@ -367,14 +385,20 @@ void printStartL(const struct passwd* pw){
     }
 }
 
+/*
+ * If the long option is enabled, this function prints the variable information for one user
+ * (each log in is different from another one)
+ */
 void printLong(UserUTMP* user, bool wtmp){
+    // Printing the current utmp information for the user
     if(user != NULL){
         time_t login_time = user->time;
         char* formatted_login_time = formatTime(login_time, true);
         if (formatted_login_time == NULL) {
-            printf("Errore durante la formattazione del login time\n");
+            printf("Error during the login time formatting process\n");
             strcpy(formatted_login_time, "");
         } else {
+            // If the information are taken from the wtmp file, the label changes
             if(!wtmp){
                 printf("On since %s", formatted_login_time);
             } else {
@@ -383,6 +407,7 @@ void printLong(UserUTMP* user, bool wtmp){
             free(formatted_login_time);
         }
         printf(" on %-5s", user->tty);
+        // If the information are taken from the wtmp file, there is no idle time
         if(!wtmp){
             char* formatted_idle_time = formatTime(login_time, false);
 
@@ -400,7 +425,7 @@ void printLong(UserUTMP* user, bool wtmp){
                 free(formatted_idle_time);
 
             } else {
-                printf("Errore durante la formattazione dell'idle time\n");
+                printf("Error during the idle time formatting process\n");
             }
         } else {
             printf("\n");
@@ -436,16 +461,14 @@ void printEndL(const struct passwd* pw){
 }
 
 void printStartS(){
-    if(!intestazione){
+    if(!header){
         printf("Login\t  Name\t\t    Tty\t     Idle  Login Time   Office\t   Office Phone\n");
-        intestazione = true;
+        header = true;
     }
 }
 
 
 void printShort(const struct passwd* pw, UserUTMP* userUTMP, bool wtmp){
-
-    // FARE UNA STRUCT IN MODO DA NON DOVERLI RICREARE PER OGNI LOGIN DI OGNI PERSONA 
     char* login = pw->pw_name;
     char* gecos = strdup(pw->pw_gecos);
     if(gecos != NULL){
@@ -525,7 +548,6 @@ bool checkAsterisk(const char* line){
     }
     return false;
 }
-
 
 
 char* formatTime(const time_t time_seconds, bool isLogin) {
