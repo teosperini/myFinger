@@ -15,9 +15,8 @@
 #include <sys/stat.h>
 #include <limits.h>
 
-#define MIAO "/var/log/wtmp"
-#define MAX_USERS 100  // Numero massimo di utenti
-#define MAX_NAME_LENGTH 32  // Lunghezza massima del nome utente
+#define MAX_USERS 100
+#define MAX_NAME_LENGTH 32
 
 typedef struct {
     time_t time;  //ut->ut_ut_tv.tv_sec
@@ -30,16 +29,16 @@ void handle_specified_users(char** names, int size);
 
 void lookup_user_info(const char* user, char** copies);
 
-bool checkPresence(const char* name, char** copies);
-bool checkAsterisk(const char* line);
+bool check_presence(const char* name, char** copies);
+bool check_write_status(const char* line);
 
-void printStartL(const struct passwd* pw);
-void printLong(UserUTMP* user, bool wtmp);
-void printEndL(const struct passwd* pw);
-void printStartS();
-void printShort(const struct passwd* pw, UserUTMP* userUTMP, bool wtmp);
+void print_start_l(const struct passwd* pw);
+void print_l(UserUTMP* user, bool wtmp);
+void print_end_l(const struct passwd* pw);
+void print_start_s();
+void print_s(const struct passwd* pw, UserUTMP* userUTMP, bool wtmp);
 
-char* formatPhoneNumber(const char* phoneNumber);
-char* formatTime(const time_t login_time, bool login);
-char* formatShortTime(const time_t time_seconds, bool isLogin);
+char* format_phone_number(const char* phoneNumber);
+char* format_time(const time_t login_time, bool login);
+char* format_short_time(const time_t time_seconds, bool isLogin);
 #endif /* MYFINGER_H */
