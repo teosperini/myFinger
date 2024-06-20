@@ -169,14 +169,14 @@ void lookup_user_info(const char* user, char** copies) {
         if(passwd_found) {
             user_found = true;      // This sets true confirms (out of the while) that the user has
                                     // been found
-            if(checkPresence(pw->pw_name, copies)) {    // If the name has already been printed
+            if(check_presence(pw->pw_name, copies)) {    // If the name has already been printed
                 continue;                               // skip the cycle
             }
 
             if(!s_option || (l_option && s_option)) {   // Print the first section of the finger output
-                printStartL(pw);                        // For the long option, it is printed every user
+                print_start_l(pw);                        // For the long option, it is printed every user
             } else {
-                printStartS();                          // For the short option, it is printed once
+                print_start_s();                          // For the short option, it is printed once
             }
 
             // Creating and allocating memory for the UserUTMP struct that will contain the information
@@ -201,9 +201,9 @@ void lookup_user_info(const char* user, char** copies) {
                     strncpy(userUTMP->host, ut->ut_host, sizeof(userUTMP->host));
 
                     if(!s_option || (l_option && s_option)) {
-                        printLong(userUTMP, !wtmp_print);
+                        print_l(userUTMP, !wtmp_print);
                     } else {
-                        printShort(pw, userUTMP, !wtmp_print);
+                        print_s(pw, userUTMP, !wtmp_print);
                     }
 
                     utmp_found = true;
@@ -238,16 +238,16 @@ void lookup_user_info(const char* user, char** copies) {
                 if (last_login_time != 0) {
                     // If the wtmp entry for the user is found, print it
                     if(!s_option || (l_option && s_option)) {
-                        printLong(userUTMP, wtmp_print);
+                        print_l(userUTMP, wtmp_print);
                     } else {
-                        printShort(pw, userUTMP, wtmp_print);
+                        print_s(pw, userUTMP, wtmp_print);
                     }
                     // Else print the informations with the "never logged in" label
                 } else {
                     if(!s_option || (l_option && s_option)) {
-                        printLong(NULL, false);
+                        print_l(NULL, false);
                     } else {
-                        printShort(pw, NULL, false);
+                        print_s(pw, NULL, false);
                     }
                 }
 
@@ -256,7 +256,7 @@ void lookup_user_info(const char* user, char** copies) {
 
             // In case of the long format, print the end
             if(!s_option || (l_option && s_option)) {
-                printEndL(pw);
+                print_end_l(pw);
             }
             free(userUTMP);
         }
@@ -270,7 +270,7 @@ void lookup_user_info(const char* user, char** copies) {
 /*
  * This function checks if the current user is already been printed
  */
-bool checkPresence(const char* name, char** copies) {
+bool check_presence(const char* name, char** copies) {
     if(copies != NULL){
         int count = 0;
         while(copies[count] != NULL) {
@@ -283,7 +283,7 @@ bool checkPresence(const char* name, char** copies) {
         }
         copies[count] = strdup(name);
         if (copies[count] == NULL) {
-            fprintf(stderr, "Error duplicating the name in the checkPresence function\n");
+            fprintf(stderr, "Error duplicating the name in the check presence function\n");
             exit(EXIT_FAILURE);
         }
         copies[count + 1] = NULL;
@@ -292,10 +292,9 @@ bool checkPresence(const char* name, char** copies) {
 }
 
 /*
- * If the long option is enabled, this function prints the common information for every log in for
- * one user
+ * If the long option is enabled, this function prints the common information for the user
  */
-void printStartL(const struct passwd* pw){
+void print_start_l(const struct passwd* pw){
     // Getting the information from the gecos field
     char* login = pw->pw_name;
     char* gecos = strdup(pw->pw_gecos);
@@ -309,19 +308,19 @@ void printStartL(const struct passwd* pw){
         if(office == NULL) {
             office = strdup("");
         }
-        
+
         char* workNumber = strsep(&gecos, ",");
         if(workNumber == NULL) {
             workNumber = strdup("");
         } else {
-            workNumber = formatPhoneNumber(workNumber);
+            workNumber = format_phone_number(workNumber);
         }
 
         char* homeNumber = strsep(&gecos, ",");
         if(homeNumber == NULL) {
             homeNumber = strdup("");
         } else {
-            homeNumber = formatPhoneNumber(homeNumber);
+            homeNumber = format_phone_number(homeNumber);
         }
 
         // Printing the correctly fomatted information
@@ -386,14 +385,14 @@ void printStartL(const struct passwd* pw){
 }
 
 /*
- * If the long option is enabled, this function prints the variable information for one user
- * (each log in is different from another one)
+ * If the long option is enabled, this function prints the information of a single login
+ * for the current user
  */
-void printLong(UserUTMP* user, bool wtmp){
+void print_l(UserUTMP* user, bool wtmp){
     // Printing the current utmp information for the user
     if(user != NULL){
         time_t login_time = user->time;
-        char* formatted_login_time = formatTime(login_time, true);
+        char* formatted_login_time = format_time(login_time, true);
         if (formatted_login_time == NULL) {
             printf("Error during the login time formatting process\n");
             strcpy(formatted_login_time, "");
@@ -409,12 +408,12 @@ void printLong(UserUTMP* user, bool wtmp){
         printf(" on %-5s", user->tty);
         // If the information are taken from the wtmp file, there is no idle time
         if(!wtmp){
-            char* formatted_idle_time = formatTime(login_time, false);
+            char* formatted_idle_time = format_time(login_time, false);
 
             if (formatted_idle_time != NULL) {
                 const char* teletype = user->tty;
 
-                if (checkAsterisk(teletype)){
+                if (check_write_status(teletype)){
                     if(strcmp(user->host, "") != 0){
                         printf(" from %s\n", user->host);
                     }
@@ -435,7 +434,10 @@ void printLong(UserUTMP* user, bool wtmp){
     }
 }
 
-void printEndL(const struct passwd* pw){
+/*
+ * If the long option is enabled, this function prints the last information for the current user
+ */
+void print_end_l(const struct passwd* pw){
     char plan_path[1024];
     snprintf(plan_path, sizeof(plan_path), "%s/.plan", pw->pw_dir);
 
@@ -460,15 +462,22 @@ void printEndL(const struct passwd* pw){
     fclose(file);
 }
 
-void printStartS(){
+/*
+ * If the short option is enabled, this function prints only once the header of the myfinger program
+ */
+void print_start_s(){
     if(!header){
         printf("Login\t  Name\t\t    Tty\t     Idle  Login Time   Office\t   Office Phone\n");
         header = true;
     }
 }
 
-
-void printShort(const struct passwd* pw, UserUTMP* userUTMP, bool wtmp){
+/*
+* If the short option is enabled, this function prints the information of a single login
+ * for the current user
+ */
+void print_s(const struct passwd* pw, UserUTMP* userUTMP, bool wtmp){
+    // Getting the information from the gecos field
     char* login = pw->pw_name;
     char* gecos = strdup(pw->pw_gecos);
     if(gecos != NULL){
@@ -481,14 +490,15 @@ void printShort(const struct passwd* pw, UserUTMP* userUTMP, bool wtmp){
         if(office == NULL) {
             office = strdup("");
         }
-        
+
         char* workNumber = strsep(&gecos, ",");
         if(workNumber == NULL) {
             workNumber = strdup("");
         } else {
-            workNumber = formatPhoneNumber(workNumber);
+            workNumber = format_phone_number(workNumber);
         }
-    
+
+        // Printing the correctly fomatted information
         printf("%-10.10s", login);
         if (strcmp(name,"")!=0){
             printf("%-17.16s", name);
@@ -497,20 +507,21 @@ void printShort(const struct passwd* pw, UserUTMP* userUTMP, bool wtmp){
         }
 
         if(userUTMP != NULL){
+            // If the user is logged in or has logged in in the past, print the information about it
             const char* teletype = userUTMP->tty;
-            if (checkAsterisk(teletype)){
+            if (check_write_status(teletype)){
                 printf(" %-9.10s", teletype);
             } else {
                 printf("*%-9.9s", teletype);
             }
             if(!wtmp){
-                char* idleTime = formatShortTime(userUTMP->time, false);
+                char* idleTime = format_short_time(userUTMP->time, false);
                 printf("%-6.5s", idleTime);
                 free(idleTime);
             } else {
                 printf("   *  ");
             }
-            char* loginTime = formatShortTime(userUTMP->time, true);
+            char* loginTime = format_short_time(userUTMP->time, true);
             printf("%-13.12s", loginTime);
             free(loginTime);
             if(strcmp(userUTMP->host, "") != 0){
@@ -529,19 +540,22 @@ void printShort(const struct passwd* pw, UserUTMP* userUTMP, bool wtmp){
             }
             printf("\n");
         } else {
+            // Else, print the No logins label
             printf("  *\t        *   No logins\n");
         }
     }
 }
 
-bool checkAsterisk(const char* line){
+/*
+ * This function checks if write permission is denided to the device or not
+ */
+bool check_write_status(const char* line){
     char file_path[256];
-    strcpy(file_path, "/dev/"); // Copy /dev/ into the buffer
-    strcat(file_path, line); // Concatena ut->ut_line al buffer
+    strcpy(file_path, "/dev/");
+    strcat(file_path, line);
 
     struct stat file_stat;
     if (stat(file_path, &file_stat) == 0) {
-        // Check if group or others have write permission
         if (file_stat.st_mode & (S_IWOTH | S_IWGRP)) {
             return true;
         }
@@ -549,8 +563,10 @@ bool checkAsterisk(const char* line){
     return false;
 }
 
-
-char* formatTime(const time_t time_seconds, bool isLogin) {
+/*
+ * This function correctly format the time for the long option
+ */
+char* format_time(const time_t time_seconds, bool isLogin) {
     time_t current_time = time(NULL);
     double diff_seconds = difftime(current_time, time_seconds);
     struct tm *time_info = localtime(&time_seconds);
@@ -561,30 +577,29 @@ char* formatTime(const time_t time_seconds, bool isLogin) {
     }
 
     if (isLogin) {
-        if (diff_seconds < 15552000) {
-            //15552000
+        if (diff_seconds < 31536000) {
+            // Less than a year login time string
             strftime(time_buffer, 100, "%a %b %d %H:%M (%Z)", time_info);
-            // Formatta la data e l'ora con l'anno e memorizzale nel buffer
         } else {
-            // Se sono trascorsi meno di 6 mesi, formatta la data e l'ora con ore e minuti
+            // More than a year login time string
             strftime(time_buffer, 100, "%d %b %Y", time_info);
         }
     } else {
-        if (diff_seconds < 3600) { // Minore di un'ora
-            // Stampo solo i minuti
+        if (diff_seconds < 3600) { // Less than an hour
+            // Prints only the minutes
             int minutes = (int)(diff_seconds / 60);
             snprintf(time_buffer, size, "    %d minutes idle", minutes);
-        } else if (diff_seconds < 86400) { // Minore di un giorno
-            // Stampo ore e minuti
+        } else if (diff_seconds < 86400) { // Less than a day
+            // Prints hours and minutes
             int hours = (int)(diff_seconds / 3600);
             int minutes = (int)(diff_seconds / 60) % 60;
             snprintf(time_buffer, size, "    %d hour %d minutes idle", hours, minutes);
-        } else if (diff_seconds < 31536000) { // Minore di un anno
-            // Stampo i giorni
+        } else if (diff_seconds < 31536000) { // Less than a year
+            // Prints the days
             int days = (int)(diff_seconds / 86400);
             snprintf(time_buffer, size, "    %d days idle", days);
-        } else { // Maggiore di un anno
-            // Stampo gli anni
+        } else { // More than a year
+            // Prints the years
             int years = (int)(diff_seconds / 31536000);
             snprintf(time_buffer, size, "    %d years idle", years);
         }
@@ -593,8 +608,10 @@ char* formatTime(const time_t time_seconds, bool isLogin) {
     return time_buffer;
 }
 
-
-char* formatShortTime(const time_t time_seconds, bool isLogin) {
+/*
+ * This function correctly format the time for the short option
+ */
+char* format_short_time(const time_t time_seconds, bool isLogin) {
     time_t current_time = time(NULL);
     double diff_seconds = difftime(current_time, time_seconds);
 
@@ -606,37 +623,39 @@ char* formatShortTime(const time_t time_seconds, bool isLogin) {
     }
     if (isLogin) {
         if (diff_seconds < 31536000){
+            // Less than a year login time string
             strftime(time_buffer, size, "%b %d %H:%M", time_info);
         } else {
-            int years = (int)(diff_seconds / 31536000);
-            snprintf(time_buffer, size, "%dy", years);
+            // More than a year login time string
+            strftime(time_buffer, size, "%b %Y", time_info);
         }
     } else {
-        if (diff_seconds < 3600) { // Minore di un'ora
-            // Stampo solo i minuti
+        if (diff_seconds < 3600) { // Less than an hour
+            // Prints only the minutes
             int minutes = (int)(diff_seconds / 60);
             snprintf(time_buffer, size, "%d", minutes);
-        } else if (diff_seconds < 86400) { // Minore di un giorno
-            // Stampo ore e minuti
+        } else if (diff_seconds < 86400) { // Less than a day
+            // Prints hours and minutes
             int hours = (int)(diff_seconds / 3600);
             int minutes = (int)(diff_seconds / 60) % 60;
             snprintf(time_buffer, size, "%d:%02d", hours, minutes);
-        } else if (diff_seconds < 31536000) { // Minore di un anno
-            // Stampo i giorni
+        } else if (diff_seconds < 31536000) { // Less than a year
+            // Prints the days
             int days = (int)(diff_seconds / 86400);
             snprintf(time_buffer, size, "%dd", days);
-        } else { // Maggiore di un anno
-            // Stampo gli anni
+        } else { // More than a year
+            // Prints the years
             int years = (int)(diff_seconds / 31536000);
             snprintf(time_buffer, size, "%dy", years);
         }
     }
-
     return time_buffer;
 }
 
-
-char* formatPhoneNumber(const char* phoneNumber){
+/*
+ * This function correctly forma the phone numbers
+ */
+char* format_phone_number(const char* phoneNumber){
     int len = strlen(phoneNumber);
     char* number_buffer = malloc(15 * sizeof(char));
     if (number_buffer == NULL) {
