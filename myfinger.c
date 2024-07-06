@@ -268,7 +268,7 @@ void lookup_user_info(const char* user, char** copies) {
 }
 
 /*
- * This function checks if the current user is already been printed
+ * This function checks if the current user has already been printed
  */
 bool check_presence(const char* name, char** copies) {
     if(copies != NULL){
@@ -653,7 +653,7 @@ char* format_short_time(const time_t time_seconds, bool isLogin) {
 }
 
 /*
- * This function correctly forma the phone numbers
+ * This function correctly format the phone numbers
  */
 char* format_phone_number(const char* phoneNumber){
     int len = strlen(phoneNumber);
