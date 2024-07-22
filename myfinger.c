@@ -93,13 +93,16 @@ int main(int argc, char** argv) {
 void handle_active_users(){
     s_option = true;
     struct utmp* ut;
-    setutent(); // Set the pointer at the beginning of the /run/utmp file
+    setutent(); // Set the pointer at the beginning of the utmp file
     char encounteredUsers[MAX_USERS][MAX_NAME_LENGTH];  // Array to save the encountered users
     int numEncounteredUsers = 0;                        // Index of the array
     while ((ut = getutent()) != NULL) {                 // Iterating over the active entites
         if (ut->ut_type == USER_PROCESS) {              // Checking if the entity is an user process
             bool userEncountered = false;
-            char* user = ut->ut_user;
+
+            char user[UT_NAMESIZE];
+            strncpy(user, ut->ut_user, UT_NAMESIZE);
+
             for (int i = 0; i < numEncounteredUsers; ++i) {     // Checking if the user is already
                 if (strcmp(encounteredUsers[i], user) == 0) {   // present in the array
                     userEncountered = true;
@@ -110,11 +113,13 @@ void handle_active_users(){
                 strncpy(encounteredUsers[numEncounteredUsers], user, UT_NAMESIZE);
                 ++numEncounteredUsers;
                 userEncountered = false;
-                lookup_user_info(user, NULL);
             }
         }
     }
     endutent();
+    for (int i = 0; i < numEncounteredUsers; ++i) {
+        lookup_user_info(encounteredUsers[i], NULL);
+    }
 }
 
 /*
@@ -149,7 +154,9 @@ void lookup_user_info(const char* user, char** copies) {
     while((pw = getpwent()) != NULL) {          // Iterating over every entry of the passwd file
         char* gecos = strdup(pw->pw_gecos);
         char* name = strsep(&gecos, ",");
+    
         bool passwd_found = false;
+
         if(strcmp(user, pw->pw_name) == 0) {    // Check if the current passwd entry perfectly
             passwd_found = true;                // matches the user's unique username
         }
@@ -167,6 +174,7 @@ void lookup_user_info(const char* user, char** copies) {
 
         // If at least one comparision was successful, then look for the user's utmp/wtmp informations
         if(passwd_found) {
+            passwd_found = false;
             user_found = true;      // This sets true confirms (out of the while) that the user has
                                     // been found
             if(check_presence(pw->pw_name, copies)) {    // If the name has already been printed
@@ -224,7 +232,7 @@ void lookup_user_info(const char* user, char** copies) {
                 }
 
                 // Manually scanning the wtmp file (there is no library that automatize such operationn)
-                while (read(wtmp_fd, &wt, sizeof(struct utmp)) == sizeof(struct utmp)) {
+                while (read(wtmp_fd, &wt, sizeof(struct utmp) ) == sizeof(struct utmp)) {
                     if (strncmp(wt.ut_name, pw->pw_name, UT_NAMESIZE) == 0 && wt.ut_type == USER_PROCESS) {
                         if (wt.ut_tv.tv_sec > last_login_time) {
                             // Filling the userUTMP struct with the needed wtmp informations
@@ -268,7 +276,7 @@ void lookup_user_info(const char* user, char** copies) {
 }
 
 /*
- * This function checks if the current user has already been printed
+ * This function checks if the current user is already been printed
  */
 bool check_presence(const char* name, char** copies) {
     if(copies != NULL){
@@ -653,7 +661,7 @@ char* format_short_time(const time_t time_seconds, bool isLogin) {
 }
 
 /*
- * This function correctly format the phone numbers
+ * This function correctly forma the phone numbers
  */
 char* format_phone_number(const char* phoneNumber){
     int len = strlen(phoneNumber);
